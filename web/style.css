@@ -19,3 +19,4 @@ input[type=number] { width: 70px; }
 .err { color: #c0392b; }
 details { margin: 8px 0; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } #plan, #view3d { height: 60vh; } }
+[hidden] { display: none !important; }

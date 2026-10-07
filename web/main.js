@@ -83,3 +83,5 @@ function requestHeat() {
 onRender(() => requestHeat());
 
 render();
+
+import('./ui.js'); // ui.js는 main.js의 state/render를 import한다
