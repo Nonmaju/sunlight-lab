@@ -82,3 +82,15 @@ test('sunDirection 좌표 규약: 방위 0°(정북)은 northVec(angle), 방위 
     assert.ok(Math.abs(us[0] + n[0]) < 0.01 && Math.abs(us[1] + n[1]) < 0.01, `ang=${ang} ${us} vs ${-n[0]},${-n[1]}`);
   }
 });
+
+test('NOAA fixture 잔차 = 대기굴절: 기하 고도 + Bennett 굴절 보정이 0.01° 안에서 일치', () => {
+  const fx = JSON.parse(readFileSync(new URL('./fixtures/noaa-seoul-2026-12-22.json', import.meta.url)));
+  // Bennett: R[분] = 1 / tan((h + 7.31/(h + 4.4))°), h = 고도(°)
+  const bennett = (h) => 1 / Math.tan(((h + 7.31 / (h + 4.4)) * Math.PI) / 180) / 60;
+  for (const r of fx.rows) {
+    const [hh, mm] = r.time.split(':').map(Number);
+    const p = sunPosition(instantMs(fx.date, hh * 60 + mm, 'KST', fx.lon), fx.lat, fx.lon);
+    const refracted = p.altitude + bennett(p.altitude);
+    assert.ok(Math.abs(refracted - r.elevation) < 0.01, `${r.time}: ${refracted} vs ${r.elevation}`);
+  }
+});
