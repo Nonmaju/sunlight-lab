@@ -27,7 +27,7 @@ export const SAMPLES = {
     volumes: [{ id: 'A', footprint: rect(3, 4, 17, 26), z0: 0, h: 15, role: 'mine' }, neighbor()],
     settings: settings(),
   },
-  // 같은 연면적 규모로 사선에 맞춰 후퇴한 2단 매스: 1단 9m(정북 4m), 2단 15m(정북 8m ≥ 7.5m)
+  // 비슷한 규모(연면적 약 7% 감소: 1540 → 1428㎡)로 사선에 맞춰 후퇴한 2단 매스: 1단 9m(정북 4m), 2단 15m(정북 8m ≥ 7.5m)
   compliant: {
     site: site(),
     volumes: [
