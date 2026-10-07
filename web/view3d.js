@@ -23,8 +23,7 @@ export function createView(container) {
   camera.up.set(0, 0, 1);
   camera.position.set(-40, -70, 60);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(10, 15, 5);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 0.7));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 0.7));
   const sun = new THREE.DirectionalLight(0xffffff, 1.6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -61,8 +60,8 @@ export function createView(container) {
     dyn.clear();
   }
 
-  function setbackSurface(site, params) {
-    const n = northVec(site.northAngleDeg), prof = profile(params);
+  function setbackSurface(site, params, maxTop) {
+    const n = northVec(site.northAngleDeg), prof = profile(params, Math.max(14, maxTop * params.ratio + 2));
     const pos = [];
     for (const e of activeEdges(site)) {
       for (let k = 0; k + 1 < prof.length; k++) {
@@ -95,11 +94,29 @@ export function createView(container) {
     const { site, volumes, settings } = state;
     const { mode, sunDir, violations, heat, metric } = ctx;
     // 태양: 조명 방향은 코어의 태양 벡터만 사용 (그림자와 계산 결과가 같은 태양을 본다)
+    // 장면(대지+볼륨)의 실제 범위에서 조명 목표·그림자 카메라·궤도 중심을 유도한다 (원점에서 멀리 떨어진 대지도 그림자가 나오도록)
+    const pts = [...site.polygon, ...volumes.flatMap((v) => v.footprint)];
+    const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const maxTop = Math.max(0, ...volumes.map((v) => v.z0 + v.h));
+    const radius = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2 + maxTop;
+    const sc = sun.shadow.camera, ext = radius * 1.3;
+    Object.assign(sc, { left: -ext, right: ext, top: ext, bottom: -ext, far: radius * 4 + 200 });
+    sc.updateProjectionMatrix();
+    sun.target.position.set(cx, cy, 0);
+    sun.target.updateMatrixWorld();
     const up = sunDir && sunDir.z > 0;
     sun.intensity = up ? 1.6 : 0;
-    if (up) sun.position.set(10 + sunDir.x * 200, 15 + sunDir.y * 200, sunDir.z * 200);
-    sun.target.position.set(10, 15, 0);
-    sun.target.updateMatrixWorld();
+    if (up) { const d = radius * 3 + 100; sun.position.set(cx + sunDir.x * d, cy + sunDir.y * d, sunDir.z * d); }
+    ground.position.set(cx, cy, -0.02);
+    ground.scale.setScalar(Math.max(1, (radius * 6) / 400));
+    if (!view.center || Math.hypot(cx - view.center[0], cy - view.center[1]) > 1) {
+      const t = controls.target, from = view.center ? [t.x, t.y] : null;
+      t.set(cx, cy, 5);
+      if (from) camera.position.add({ x: cx - from[0], y: cy - from[1], z: 0 }); // 궤도 중심이 옮겨지면 카메라도 같이 이동
+      else camera.position.set(cx - 40, cy - 70, 60);
+      view.center = [cx, cy];
+    }
     // 대지 경계(변 태그별 색)
     site.polygon.forEach((a, i) => {
       const b = site.polygon[(i + 1) % site.polygon.length];
@@ -115,7 +132,7 @@ export function createView(container) {
       dyn.add(prism(v.footprint, v.z0, v.h, mat, !ghost));
     }
     if (mode === 'setback') {
-      dyn.add(setbackSurface(site, settings.setbackParams));
+      dyn.add(setbackSurface(site, settings.setbackParams, maxTop));
       for (const r of violations ?? []) {
         for (const pc of r.pieces) {
           dyn.add(prism(pc.poly, pc.z0, pc.z1 - pc.z0, new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.85 }), false));
@@ -126,5 +143,6 @@ export function createView(container) {
   }
 
   resize();
-  return { update, resize };
+  const view = { update, resize, center: null };
+  return view;
 }
