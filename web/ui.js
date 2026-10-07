@@ -42,6 +42,9 @@ left.append(el(`<div>
   <label>시각 기준 <select id="basis"><option value="KST">표준시(KST)</option><option value="진태양시">진태양시</option></select></label>
   <label>층고(m) <input id="fh" type="number" step="0.1" min="2"></label>
   <label>격자 간격(m) <input id="gs" type="number" step="0.5" min="0.5"></label>
+  <h3>한도(선택 입력)</h3>
+  <label>건폐율 한도(%) <input id="lim-cov" type="number" step="1" min="0"></label>
+  <label>용적률 한도(%) <input id="lim-far" type="number" step="1" min="0"></label>
   <h3>보기</h3>
   <div class="row" id="modes">
     <button data-m="shadow">그림자</button><button data-m="heat">일조 히트맵</button><button data-m="setback">사선 검토</button>
@@ -62,6 +65,13 @@ $('#time').oninput = (e) => mut((s) => { s.settings.timeMin = +e.target.value; }
 $('#basis').onchange = (e) => mut((s) => { s.settings.timeBasis = e.target.value; });
 numField($('#fh'), () => state.settings.floorHeight, 2, (s, v) => { s.settings.floorHeight = v; });
 numField($('#gs'), () => state.settings.gridSpacing, 0.5, (s, v) => { s.settings.gridSpacing = v; });
+const limField = (input, key) => (input.onchange = () => {
+  const t = input.value.trim(), v = Number(t);
+  if (t !== '' && !(Number.isFinite(v) && v >= 0)) { input.value = state.limits[key] ?? ''; return; }
+  mut((s) => { s.limits[key] = t === '' ? null : v; });
+});
+limField($('#lim-cov'), 'coverage');
+limField($('#lim-far'), 'far');
 document.querySelectorAll('#modes button').forEach((b) => (b.onclick = () => mut((s) => { s.view.mode = b.dataset.m; })));
 document.querySelectorAll('#metrics button').forEach((b) => (b.onclick = () => mut((s) => { s.view.metric = b.dataset.k; })));
 $('#add-box').onclick = () => mut((s) => {
@@ -254,6 +264,8 @@ onRender((s, d) => {
   $('#basis').value = s.settings.timeBasis;
   $('#fh').value = s.settings.floorHeight;
   $('#gs').value = s.settings.gridSpacing;
+  $('#lim-cov').value = s.limits.coverage ?? '';
+  $('#lim-far').value = s.limits.far ?? '';
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.m === s.view.mode));
   document.querySelectorAll('#metrics button').forEach((b) => b.classList.toggle('on', b.dataset.k === s.view.metric));
   renderVolumes();
@@ -261,12 +273,13 @@ onRender((s, d) => {
   showEdgePanel();
   drawPlan();
   const pct = (v) => (v * 100).toFixed(1) + '%';
+  const lim = (ratio, l) => (l === null ? '' : ` <small>한도 ${l}% — ${ratio * 100 > l + 1e-9 ? '<b class="err">초과</b>' : '이내'}</small>`);
   right.innerHTML = `
     <div class="disclaimer" style="display:inline-block">참고용, 법적 효력 없음</div>
     ${d.errors.length ? `<h3 class="err">입력 오류</h3><ul class="err">${d.errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : `
     <h3>건폐율·용적률</h3>
     <div>대지면적 ${d.cov.siteArea.toFixed(1)}㎡ · 건축면적 ${d.cov.buildingArea.toFixed(1)}㎡ · 연면적 ${d.cov.gfa.toFixed(1)}㎡</div>
-    <div><b>건폐율 ${pct(d.cov.coverageRatio)}</b> · <b>용적률 ${pct(d.cov.far)}</b> <small>(법정 한도는 앱에 내장하지 않음)</small></div>
+    <div><b>건폐율 ${pct(d.cov.coverageRatio)}</b>${lim(d.cov.coverageRatio, s.limits.coverage)} · <b>용적률 ${pct(d.cov.far)}</b>${lim(d.cov.far, s.limits.far)} <small>(법정 한도는 앱에 내장하지 않음)</small></div>
     <h3>정북 사선</h3>
     ${d.violations.map((r) => `<div>${esc(r.id)}: ${r.violates ? `<b class="err">위반</b> (최대 초과 ${r.maxExcess.toFixed(2)}m)` : '위반 없음'}</div>`).join('') || '내 건물 없음'}
     <h3>일조 히트맵</h3>
