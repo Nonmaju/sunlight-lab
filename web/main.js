@@ -44,26 +44,40 @@ document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('cli
 }));
 
 let worker = null, heatTimer = null, heatKey = '';
-export const heatStatus = { running: false, done: 0, total: 0, ms: null, spawns: 0 };
+export const heatStatus = { running: false, done: 0, total: 0, ms: null, error: null, spawns: 0 }; // spawns: 검증용 카운터
+
+function cancelHeat() {
+  clearTimeout(heatTimer);
+  worker?.terminate();
+  worker = null;
+  heatStatus.running = false;
+}
 
 function requestHeat() {
   const { errors } = validate(state.site, state.volumes);
-  if (errors.length) return;
+  if (errors.length) { cancelHeat(); heatKey = ''; heat = null; return; }
   const { site, volumes, settings } = state;
   const key = JSON.stringify({ site, volumes, d: settings.date, b: settings.timeBasis, la: settings.lat, lo: settings.lon, g: settings.gridSpacing });
   if (key === heatKey) return; // 태양 시각(timeMin)은 히트맵에 영향 없음
   heatKey = key;
-  clearTimeout(heatTimer);
+  cancelHeat(); // 이전 작업 즉시 취소
+  heatStatus.running = true; heatStatus.error = null;
+  setHeat(null); // 낡은 히트맵 제거 (재렌더 시 key 동일 → 재진입 없음)
   heatTimer = setTimeout(() => {
-    worker?.terminate(); // 이전 작업 취소
-    worker = new Worker(new URL('./heat.worker.js', import.meta.url), { type: 'module' });
+    const w = worker = new Worker(new URL('./heat.worker.js', import.meta.url), { type: 'module' });
     heatStatus.spawns++;
-    heatStatus.running = true; heatStatus.done = 0; heatStatus.total = 0;
-    worker.onmessage = ({ data }) => {
+    heatStatus.done = 0; heatStatus.total = 0;
+    w.onmessage = ({ data }) => {
+      if (w !== worker) return;
       if (data.type === 'progress') { heatStatus.done = data.done; heatStatus.total = data.total; listeners.forEach((fn) => fn(state, null)); }
       else { heatStatus.running = false; heatStatus.ms = data.ms; setHeat({ points: data.points, values: data.values }); }
     };
-    worker.postMessage({ state: JSON.parse(JSON.stringify({ site, volumes, settings })) });
+    w.onerror = (e) => {
+      if (w !== worker) return;
+      heatStatus.running = false; heatStatus.error = String(e.message || e);
+      listeners.forEach((fn) => fn(state, null));
+    };
+    w.postMessage({ state: JSON.parse(JSON.stringify({ site, volumes, settings })) });
   }, 300);
 }
 onRender(() => requestHeat());
