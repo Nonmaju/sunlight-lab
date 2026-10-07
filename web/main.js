@@ -84,7 +84,7 @@ function requestHeat() {
     w.postMessage({ state: JSON.parse(JSON.stringify({ site, volumes, settings: { ...settings, date: HEAT_DATE } })) });
   }, 300);
 }
-onRender(() => requestHeat());
+onRender((_, d) => { if (d) requestHeat(); }); // 진행/오류 알림(d=null)에는 재요청하지 않는다 (오류 시 무한 재시도 방지)
 
 render();
 
