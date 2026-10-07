@@ -5,6 +5,9 @@ import { coverage } from '../core/coverage.js';
 import { instantMs, sunDirection } from '../core/sun.js';
 import { createView } from './view3d.js';
 
+// 동지일. 날짜는 KASI 월력요항으로 확인 필요(spec §9). 히트맵은 항상 이 날짜로 계산한다.
+export const HEAT_DATE = '2026-12-22';
+
 export const state = { ...cloneState(SAMPLES.violation), view: { mode: 'shadow', metric: 'continuous' } };
 let heat = null; // Task 8에서 채움
 const view = createView(document.getElementById('view3d'));
@@ -57,7 +60,7 @@ function requestHeat() {
   const { errors } = validate(state.site, state.volumes);
   if (errors.length) { cancelHeat(); heatKey = ''; heat = null; return; }
   const { site, volumes, settings } = state;
-  const key = JSON.stringify({ site, volumes, d: settings.date, b: settings.timeBasis, la: settings.lat, lo: settings.lon, g: settings.gridSpacing });
+  const key = JSON.stringify({ site, volumes, b: settings.timeBasis, la: settings.lat, lo: settings.lon, g: settings.gridSpacing });
   if (key === heatKey) return; // 태양 시각(timeMin)은 히트맵에 영향 없음
   heatKey = key;
   cancelHeat(); // 이전 작업 즉시 취소
@@ -77,7 +80,7 @@ function requestHeat() {
       heatStatus.running = false; heatStatus.error = String(e.message || e);
       listeners.forEach((fn) => fn(state, null));
     };
-    w.postMessage({ state: JSON.parse(JSON.stringify({ site, volumes, settings })) });
+    w.postMessage({ state: JSON.parse(JSON.stringify({ site, volumes, settings: { ...settings, date: HEAT_DATE } })) });
   }, 300);
 }
 onRender(() => requestHeat());

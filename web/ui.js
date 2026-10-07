@@ -1,4 +1,4 @@
-import { state, setState, render, onRender, heatStatus } from './main.js';
+import { state, setState, render, onRender, heatStatus, HEAT_DATE } from './main.js';
 import { SAMPLES, cloneState } from '../core/samples.js';
 import { HEAT_STOPS, HEAT_MAX_MIN } from './view3d.js';
 import { validateState, realDate } from '../core/validate.js';
@@ -243,7 +243,7 @@ onRender((s, d) => {
     <div id="heat-status">${heatStatus.error ? `히트맵 계산 오류: ${esc(heatStatus.error)}` : heatStatus.running ? '계산 중…' : heatStatus.ms ? `계산 ${Math.round(heatStatus.ms)}ms` : ''}</div>
     <div class="legend" style="background:linear-gradient(90deg,${stops})"></div>
     <div style="position:relative;height:1.4em"><small style="position:absolute;left:0">0</small><small id="tick2" style="position:absolute;left:${(120 / HEAT_MAX_MIN) * 100}%;transform:translateX(-50%);white-space:nowrap">2시간(참고 기준)</small><small style="position:absolute;right:0">${HEAT_MAX_MIN / 60}시간</small></div>
-    <small>지표: ${s.view.metric === 'total' ? '누적' : '연속'} · 동지 09~15시 · 격자 ${s.settings.gridSpacing}m · ${s.settings.timeBasis}<br>
+    <small>지표: ${s.view.metric === 'total' ? '누적' : '연속'} · 동지(${HEAT_DATE}) 09~15시 · 격자 ${s.settings.gridSpacing}m · ${s.settings.timeBasis}<br>
     2시간 기준은 제86조③2호(공동주택 동간거리 대체 기준) 표현에서 가져온 참고 기준입니다.</small>`}
     <details open><summary>가정 목록</summary><ol>${ASSUMPTIONS.map((a) => `<li>${a}</li>`).join('')}</ol></details>`;
 });
