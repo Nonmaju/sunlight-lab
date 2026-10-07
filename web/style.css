@@ -1,0 +1,21 @@
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.5 system-ui, "Malgun Gothic", sans-serif; color: #222; background: #fafafa; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #1f2d3d; color: #fff; }
+.disclaimer { background: #c0392b; padding: 2px 10px; border-radius: 4px; font-weight: 600; }
+main { display: grid; grid-template-columns: 280px 1fr 300px; height: calc(100vh - 42px); }
+aside { overflow: auto; padding: 12px; background: #fff; border-right: 1px solid #ddd; }
+#right { border-right: 0; border-left: 1px solid #ddd; }
+#center { position: relative; display: flex; flex-direction: column; min-width: 0; }
+#tabs { display: flex; gap: 4px; padding: 6px; background: #eef1f4; }
+#tabs button, aside button { padding: 4px 10px; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
+#tabs button.on, aside button.on { background: #1f2d3d; color: #fff; }
+#plan, #view3d { flex: 1; min-height: 0; width: 100%; }
+#view3d { position: relative; }
+h3 { margin: 14px 0 6px; font-size: 14px; }
+label { display: block; margin: 4px 0; }
+input[type=number] { width: 70px; }
+.row { display: flex; gap: 6px; align-items: center; margin: 4px 0; flex-wrap: wrap; }
+.legend { height: 10px; border-radius: 3px; margin: 4px 0; }
+.err { color: #c0392b; }
+details { margin: 8px 0; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } #plan, #view3d { height: 60vh; } }

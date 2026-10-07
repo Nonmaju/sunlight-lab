@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>일조·일조권 사선 검토기</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <header><strong>일조·일조권 사선 검토기</strong><span class="disclaimer">참고용, 법적 효력 없음</span></header>
+  <main>
+    <aside id="left"></aside>
+    <section id="center">
+      <nav id="tabs">
+        <button data-tab="plan" class="on">평면 편집</button>
+        <button data-tab="3d">3D 뷰</button>
+      </nav>
+      <canvas id="plan"></canvas>
+      <div id="view3d" hidden></div>
+    </section>
+    <aside id="right"></aside>
+  </main>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
