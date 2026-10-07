@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_PARAMS as P, requiredDistance, allowedHeight, northVec, activeEdges, zCuts, checkSetback } from '../core/setback.js';
+import { DEFAULT_PARAMS as P, requiredDistance, allowedHeight, northVec, activeEdges, zCuts, checkSetback, profile } from '../core/setback.js';
 import { pointInPolygon, rayHit } from '../core/geom.js';
 
 const rect = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
@@ -94,4 +94,9 @@ test('적층 볼륨(z0=12, h=3, 정북 4m): 상단 15, 허용 10 → 초과 = 15
   const [r] = checkSetback(SITE(), [vol(rect(3, 4, 17, 26), 3, 12)]);
   assert.equal(r.violates, true);
   near(r.maxExcess, 3);
+});
+
+test('profile: Lmax가 크면 끝점 [Lmax, 2·Lmax], 작으면 꺾임점(5m) 뒤로 클램프', () => {
+  assert.deepEqual(profile(P, 40).at(-1), [40, 80]);
+  assert.deepEqual(profile(P, 3).at(-1), [6, 12]); // lowH*ratio + 1 = 6
 });

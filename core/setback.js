@@ -78,5 +78,6 @@ export function checkSetback(site, volumes, p = DEFAULT_PARAMS) {
 
 // 허용 사선 면의 단면: 정북 거리 L → 허용 높이 z (뷰에서 반투명 면으로 그림)
 export function profile(p = DEFAULT_PARAMS, Lmax = 14) {
+  Lmax = Math.max(Lmax, p.lowH * p.ratio + 1);
   return [[p.lowD, 0], [p.lowD, p.lowH], [p.lowH * p.ratio, p.lowH], [Lmax, Lmax / p.ratio]];
 }

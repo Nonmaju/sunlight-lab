@@ -92,3 +92,10 @@ test('isLit: 점이 상자 지붕 높이 이상이면 양지, 태양이 정수�
   assert.equal(isLit([5, 5, 0.05], up, box), false);
   assert.equal(isLit([15, 5, 0.05], up, box), true);
 });
+
+test('wallGrid: 연속 중복 꼭짓점(길이 0 변)이 있어도 NaN 없음', () => {
+  const v = { id: 'n', footprint: [[0, 0], [10, 0], [10, 0], [10, 10], [0, 10]], z0: 0, h: 6, role: 'neighbor' };
+  const pts = wallGrid([v], 2, [0, 1]);
+  assert.ok(pts.length > 0);
+  assert.ok(pts.every((q) => q.p.every(Number.isFinite)));
+});

@@ -2,6 +2,7 @@ import { area, pointInPolygon, pointOnBoundary, segCross, selfIntersects } from 
 
 function checkPoly(poly, label, errors) {
   if (!Array.isArray(poly) || poly.length < 3) { errors.push(`${label}: 꼭짓점이 3개 이상 필요합니다`); return false; }
+  if (poly.some((q, i) => Math.hypot(q[0] - poly[(i + 1) % poly.length][0], q[1] - poly[(i + 1) % poly.length][1]) < 1e-9)) { errors.push(`${label}: 연속된 꼭짓점이 같습니다`); return false; }
   if (Math.abs(area(poly)) < 1e-9) { errors.push(`${label}: 면적이 0입니다`); return false; }
   if (selfIntersects(poly)) { errors.push(`${label}: 변이 서로 교차합니다`); return false; }
   return true;

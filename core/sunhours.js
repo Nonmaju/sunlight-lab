@@ -48,6 +48,7 @@ export function wallGrid(volumes, spacing, north) {
     poly.forEach((a, i) => {
       const b = poly[(i + 1) % poly.length];
       const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+      if (len < 1e-9) return; // 중복 꼭짓점
       const nx = dy / len, ny = -dx / len;
       if (nx * north[0] + ny * north[1] > 0.5) return; // 북향 벽은 일조 없음 → 제외
       const nu = Math.max(1, Math.round(len / spacing)), nv = Math.max(1, Math.round(v.h / spacing));

@@ -74,3 +74,7 @@ test('validateState: settings 거부', () => {
   bad((s) => { delete s.settings.setbackParams; });
   bad((s) => { s.settings.setbackParams.ratio = 0; });
 });
+test('연속된 꼭짓점이 같으면 오류', () => {
+  const r = validate({ ...SITE, polygon: [[0, 0], [20, 0], [20, 0], [20, 30], [0, 30]] }, []);
+  assert.ok(r.errors.some((e) => e.includes('연속된 꼭짓점이 같습니다')), r.errors.join('|'));
+});
