@@ -1,9 +1,12 @@
 import { state, setState, render, onRender, heatStatus } from './main.js';
 import { SAMPLES, cloneState } from '../core/samples.js';
-import { HEAT_STOPS } from './view3d.js';
+import { HEAT_STOPS, HEAT_MAX_MIN } from './view3d.js';
+import { validateState, realDate } from '../core/validate.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
+const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const nextId = () => 'V' + (Math.max(0, ...state.volumes.map((v) => +/^V(\d+)$/.exec(v.id)?.[1] || 0)) + 1);
 const mut = (fn) => { fn(state); render(); };
 // 숫자 입력 가드: 비유한·범위 밖 값은 이전 값으로 복원(상태 변경/렌더 없음)
 const numField = (input, get, min, set) => (input.onchange = () => {
@@ -16,7 +19,7 @@ const ASSUMPTIONS = [
   '옥탑·승강기탑 높이 예외 미적용(전체 높이 산입)',
   '조례값 대신 시행령 하한 기본 적용(1.5m / 10m / 높이의 1/2)',
   '정북 방향 직선 거리로 측정(국토부 해석 미확인)',
-  '제86조②1·2호 미모델링, ②3호는 변 태그 `적용제외`로 수동 지정',
+  '제86조②1·2호 미모델링, ②3호는 변 태그 「적용제외」로 수동 지정',
   '오목한 대지·여러 변이 겹치는 경우 보수적(과다 표시 가능)',
   '시각 기준(표준시/진태양시) 기본값 미확정 — 토글로 비교',
   '연면적 층수 환산은 임시 규칙: floor(높이 / 층고), 층고 기본 3.0m',
@@ -51,7 +54,10 @@ const load = (j) => { Object.assign(state, cloneState(j)); selEdge = null; fitte
 $('#s-vio').onclick = () => load(SAMPLES.violation);
 $('#s-ok').onclick = () => load(SAMPLES.compliant);
 numField($('#north'), () => state.site.northAngleDeg, -Infinity, (s, v) => { s.site.northAngleDeg = v; });
-$('#date').onchange = (e) => mut((s) => { s.settings.date = e.target.value; });
+$('#date').onchange = (e) => {
+  if (!realDate(e.target.value)) { e.target.value = state.settings.date; return; }
+  mut((s) => { s.settings.date = e.target.value; });
+};
 $('#time').oninput = (e) => mut((s) => { s.settings.timeMin = +e.target.value; });
 $('#basis').onchange = (e) => mut((s) => { s.settings.timeBasis = e.target.value; });
 numField($('#fh'), () => state.settings.floorHeight, 2, (s, v) => { s.settings.floorHeight = v; });
@@ -61,7 +67,7 @@ document.querySelectorAll('#metrics button').forEach((b) => (b.onclick = () => m
 $('#add-box').onclick = () => mut((s) => {
   const xs = s.site.polygon.map((p) => p[0]), ys = s.site.polygon.map((p) => p[1]);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  s.volumes.push({ id: 'V' + (s.volumes.length + 1), footprint: [[cx - 4, cy - 4], [cx + 4, cy - 4], [cx + 4, cy + 4], [cx - 4, cy + 4]], z0: 0, h: 9, role: 'mine' });
+  s.volumes.push({ id: nextId(), footprint: [[cx - 4, cy - 4], [cx + 4, cy - 4], [cx + 4, cy + 4], [cx - 4, cy + 4]], z0: 0, h: 9, role: 'mine' });
 });
 $('#export').onclick = () => {
   const { site, volumes, settings } = state;
@@ -72,18 +78,22 @@ $('#export').onclick = () => {
 };
 $('#import').onclick = () => $('#file').click();
 $('#file').onchange = async (e) => {
+  const f = e.target.files?.[0];
+  e.target.value = '';
+  if (!f) return;
   try {
-    const j = JSON.parse(await e.target.files[0].text());
-    if (!j.site || !j.volumes || !j.settings) throw new Error('site/volumes/settings 필요');
-    load(j);
+    const r = validateState(JSON.parse(await f.text()));
+    if (r.errors.length) { alert(['불러오기 실패:', ...r.errors.slice(0, 3)].join(String.fromCharCode(10))); return; }
+    load(r.state);
   } catch (err) { alert('불러오기 실패: ' + err.message); }
 };
+
 
 function renderVolumes() {
   const box = $('#vols');
   box.innerHTML = '';
   state.volumes.forEach((v, i) => {
-    const row = el(`<div class="row"><b>${v.id}</b>
+    const row = el(`<div class="row"><b>${esc(v.id)}</b>
       <select><option value="mine">내 건물</option><option value="neighbor">이웃</option></select>
       z0<input type="number" step="0.5" value="${v.z0}"> h<input type="number" step="0.5" value="${v.h}">
       <button>삭제</button></div>`);
@@ -179,7 +189,7 @@ window.addEventListener('mouseup', () => { drag = null; });
 function finishDrawing() {
   if (!drawing || drawing.pts.length < 3) { drawing = null; return; }
   if (tool === 'site') { state.site.polygon = drawing.pts; state.site.edges = drawing.pts.map(() => ({ tag: '인접대지' })); selEdge = null; }
-  else state.volumes.push({ id: 'V' + (state.volumes.length + 1), footprint: drawing.pts, z0: 0, h: 9, role: 'mine' });
+  else state.volumes.push({ id: nextId(), footprint: drawing.pts, z0: 0, h: 9, role: 'mine' });
   drawing = null; setTool('select'); fitted = false; render();
 }
 canvas.addEventListener('dblclick', () => { if (drawing) { drawing.pts.pop(); finishDrawing(); } });
@@ -194,6 +204,7 @@ document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('cli
 function showEdgePanel() {
   const p = $('#edge-panel');
   if (selEdge === null) { p.hidden = true; return; }
+  state.site.edges ??= [];
   const e = (state.site.edges[selEdge] ??= { tag: '인접대지' });
   p.hidden = false;
   p.innerHTML = `변 ${selEdge + 1}: <select>${['인접대지', '도로·공원 등', '적용제외'].map((t) => `<option ${t === e.tag ? 'selected' : ''}>${t}</option>`).join('')}</select> 폭(m)<input type="number" step="0.5" min="0" value="${e.width ?? 0}">`;
@@ -222,16 +233,16 @@ onRender((s, d) => {
   const pct = (v) => (v * 100).toFixed(1) + '%';
   right.innerHTML = `
     <div class="disclaimer" style="display:inline-block">참고용, 법적 효력 없음</div>
-    ${d.errors.length ? `<h3 class="err">입력 오류</h3><ul class="err">${d.errors.map((x) => `<li>${x}</li>`).join('')}</ul>` : `
+    ${d.errors.length ? `<h3 class="err">입력 오류</h3><ul class="err">${d.errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : `
     <h3>건폐율·용적률</h3>
     <div>대지면적 ${d.cov.siteArea.toFixed(1)}㎡ · 건축면적 ${d.cov.buildingArea.toFixed(1)}㎡ · 연면적 ${d.cov.gfa.toFixed(1)}㎡</div>
     <div><b>건폐율 ${pct(d.cov.coverageRatio)}</b> · <b>용적률 ${pct(d.cov.far)}</b> <small>(법정 한도는 앱에 내장하지 않음)</small></div>
     <h3>정북 사선</h3>
-    ${d.violations.map((r) => `<div>${r.id}: ${r.violates ? `<b class="err">위반</b> (최대 초과 ${r.maxExcess.toFixed(2)}m)` : '위반 없음'}</div>`).join('') || '내 건물 없음'}
+    ${d.violations.map((r) => `<div>${esc(r.id)}: ${r.violates ? `<b class="err">위반</b> (최대 초과 ${r.maxExcess.toFixed(2)}m)` : '위반 없음'}</div>`).join('') || '내 건물 없음'}
     <h3>일조 히트맵</h3>
-    <div id="heat-status">${heatStatus.error ? `히트맵 계산 오류: ${heatStatus.error}` : heatStatus.running ? '계산 중…' : heatStatus.ms ? `계산 ${Math.round(heatStatus.ms)}ms` : ''}</div>
+    <div id="heat-status">${heatStatus.error ? `히트맵 계산 오류: ${esc(heatStatus.error)}` : heatStatus.running ? '계산 중…' : heatStatus.ms ? `계산 ${Math.round(heatStatus.ms)}ms` : ''}</div>
     <div class="legend" style="background:linear-gradient(90deg,${stops})"></div>
-    <div class="row" style="justify-content:space-between"><small>0</small><small>2시간(참고 기준)</small><small>6시간</small></div>
+    <div style="position:relative;height:1.4em"><small style="position:absolute;left:0">0</small><small id="tick2" style="position:absolute;left:${(120 / HEAT_MAX_MIN) * 100}%;transform:translateX(-50%);white-space:nowrap">2시간(참고 기준)</small><small style="position:absolute;right:0">${HEAT_MAX_MIN / 60}시간</small></div>
     <small>지표: ${s.view.metric === 'total' ? '누적' : '연속'} · 동지 09~15시 · 격자 ${s.settings.gridSpacing}m · ${s.settings.timeBasis}<br>
     2시간 기준은 제86조③2호(공동주택 동간거리 대체 기준) 표현에서 가져온 참고 기준입니다.</small>`}
     <details open><summary>가정 목록</summary><ol>${ASSUMPTIONS.map((a) => `<li>${a}</li>`).join('')}</ol></details>`;
