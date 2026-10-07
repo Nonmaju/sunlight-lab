@@ -1,7 +1,7 @@
 import { state, setState, render, onRender, heatStatus, HEAT_DATE } from './main.js';
 import { SAMPLES, cloneState } from '../core/samples.js';
 import { HEAT_STOPS, HEAT_MAX_MIN } from './view3d.js';
-import { validateState, realDate } from '../core/validate.js';
+import { validate, validateState, realDate } from '../core/validate.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -199,7 +199,36 @@ function setTool(t) { tool = t; document.querySelectorAll('#toolbar button').for
 const toolbar = el(`<div id="toolbar" class="row"><button data-t="select" class="on">선택/이동</button><button data-t="site">대지 그리기</button><button data-t="volume">볼륨 그리기</button><small>클릭으로 꼭짓점 추가, 더블클릭/Enter로 닫기</small></div>`);
 toolbar.querySelectorAll('button').forEach((b) => (b.onclick = () => { drawing = null; setTool(b.dataset.t); }));
 $('#tabs').after(toolbar);
-document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => { toolbar.hidden = b.dataset.tab === '3d'; }));
+const coordBox = el(`<details id="coord"><summary>좌표 직접 입력</summary>
+  <div class="row"><select id="coord-sel"></select><button id="coord-apply">적용</button></div>
+  <textarea id="coord-text" rows="6" style="width:100%" spellcheck="false" placeholder="한 줄에 한 점: x y"></textarea>
+  <div id="coord-msg" class="err"></div></details>`);
+toolbar.after(coordBox);
+document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => { toolbar.hidden = coordBox.hidden = b.dataset.tab === '3d'; }));
+
+// 선택한 다각형(대지/볼륨)의 좌표 텍스트 ↔ 상태
+const coordSel = $('#coord-sel'), coordText = $('#coord-text'), coordMsg = $('#coord-msg');
+const coordPoly = (st, v) => (v === 'site' ? st.site.polygon : st.volumes[+v.slice(1)]?.footprint);
+function refreshCoord() {
+  const prev = coordSel.value;
+  coordSel.innerHTML = ['<option value="site">대지</option>', ...state.volumes.map((v, i) => `<option value="v${i}">볼륨 ${esc(v.id)}</option>`)].join('');
+  coordSel.value = [...coordSel.options].some((o) => o.value === prev) ? prev : 'site';
+  if (document.activeElement !== coordText) coordText.value = coordPoly(state, coordSel.value).map(([x, y]) => `${x} ${y}`).join('\n');
+}
+coordSel.onchange = () => { coordMsg.textContent = ''; coordText.value = coordPoly(state, coordSel.value).map(([x, y]) => `${x} ${y}`).join('\n'); };
+$('#coord-apply').onclick = () => {
+  const pts = coordText.value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => l.split(/[\s,]+/).map(Number));
+  if (pts.length < 3 || pts.some((p) => p.length !== 2 || !p.every(Number.isFinite))) { coordMsg.textContent = '꼭짓점 3개 이상, 줄마다 숫자 두 개(x y)가 필요합니다'; return; }
+  const sel = coordSel.value, c = cloneState({ site: state.site, volumes: state.volumes, settings: state.settings });
+  if (sel === 'site') {
+    if (pts.length !== c.site.polygon.length) c.site.edges = pts.map(() => ({ tag: '인접대지' })); // 꼭짓점 수가 바뀌면 변 태그 초기화
+    c.site.polygon = pts;
+  } else c.volumes[+sel.slice(1)].footprint = pts;
+  const { errors } = validate(c.site, c.volumes);
+  if (errors.length) { coordMsg.textContent = errors[0]; return; }
+  coordMsg.textContent = '';
+  mut((s) => { s.site = c.site; s.volumes = c.volumes; selEdge = null; fitted = false; });
+};
 
 function showEdgePanel() {
   const p = $('#edge-panel');
@@ -228,6 +257,7 @@ onRender((s, d) => {
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.m === s.view.mode));
   document.querySelectorAll('#metrics button').forEach((b) => b.classList.toggle('on', b.dataset.k === s.view.metric));
   renderVolumes();
+  refreshCoord();
   showEdgePanel();
   drawPlan();
   const pct = (v) => (v * 100).toFixed(1) + '%';
