@@ -3,11 +3,13 @@ import { ccw, pointInPolygon, rayCrossings } from './geom.js';
 export function isLit(p, sunDir, volumes) {
   if (sunDir.z <= 0) return false;
   const h = Math.hypot(sunDir.x, sunDir.y);
-  const p2 = [p[0], p[1]];
   if (h < 1e-9) {
+    const p2 = [p[0], p[1]];
     return !volumes.some((v) => pointInPolygon(p2, v.footprint) && v.z0 + v.h > p[2]);
   }
   const u = [sunDir.x / h, sunDir.y / h], tan = sunDir.z / h;
+  // 변 위의 점이 반개구간 규칙 때문에 "밖"으로 판정돼 진입 교차(s≈0)를 놓치지 않도록, 태양 쪽으로 1e-6m 이동(z는 그대로).
+  const p2 = [p[0] + 1e-6 * u[0], p[1] + 1e-6 * u[1]];
   for (const v of volumes) {
     const top = v.z0 + v.h;
     if (p[2] >= top - 1e-9) continue;
@@ -61,7 +63,7 @@ export function wallGrid(volumes, spacing, north) {
 }
 
 // 10분 샘플링 후 일조↔그늘 전이를 이분법으로 약 0.15초 정밀도까지 보정(샘플 양자화 오차 제거).
-// ponytail: 샘플 사이(10분 미만)에 완전히 끼어든 그림자는 놓친다. 필요하면 stepMin을 줄인다.
+// ponytail: 샘플 사이(10분 미만)에 완전히 끼어든 그림자, 또는 그늘 샘플 둘 사이의 10분 미만 양지 틈을 놓친다. 필요하면 stepMin을 줄인다.
 export function sunHours(p, volumes, sunAt, { startMin = 540, endMin = 900, stepMin = 10 } = {}) {
   const lit = (m) => isLit(p, sunAt(m), volumes);
   const bisect = (a, b, litAtA) => {

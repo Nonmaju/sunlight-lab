@@ -73,7 +73,22 @@ test('sunHours: 가리는 것이 없으면 09~15시 전체 360분', () => {
 
 test('isLit: 태양 광선이 상자 꼭짓점을 정확히 지날 때(R6) 물리적으로 올바름', () => {
   const box = [{ id: 'b', footprint: rect(0, 0, 10, 10), z0: 0, h: 10, role: 'mine' }];
-  const sun = { x: 0.5, y: 0.5, z: Math.SQRT1_2 }; // 방위각 225° 쪽 아님: 수평 방향 (+1,+1)/√2, 고도 45°
+  const sun = { x: 0.5, y: 0.5, z: Math.SQRT1_2 }; // 수평 (+1,+1)/√2, 고도 45°
   assert.equal(isLit([-5, -5, 0.05], sun, box), false); // 광선이 모서리 (0,0)→(10,10) 대각선으로 상자를 관통 → 그늘
   assert.equal(isLit([-5, 5, 0.05], { x: 0.5, y: -0.5, z: Math.SQRT1_2 }, box), true); // 모서리 (0,0)만 스침 → 양지
+});
+
+test('isLit: 바닥 변 위의 점 (정남 45° 태양, 상자 10×10×10)', () => {
+  const box = [{ id: 'b', footprint: rect(0, 0, 10, 10), z0: 0, h: 10, role: 'mine' }];
+  assert.equal(isLit([5, 10, 0.05], south45, box), false); // 북쪽 변 = 북벽 밑동, 광선이 상자를 지남 → 그늘
+  assert.equal(isLit([5, 0, 0.05], south45, box), true); // 남쪽 변 = 태양 쪽 밖, 광선이 상자에서 멀어짐 → 양지
+  // 동쪽 변(x=10)은 광선이 변과 평행(접선)이라 모호 → 단언 생략
+});
+
+test('isLit: 점이 상자 지붕 높이 이상이면 양지, 태양이 정수리면 바닥 안만 그늘', () => {
+  const box = [{ id: 'b', footprint: rect(0, 0, 10, 10), z0: 0, h: 10, role: 'mine' }];
+  assert.equal(isLit([5, 12, 10], south45, box), true);
+  const up = { x: 0, y: 0, z: 1 };
+  assert.equal(isLit([5, 5, 0.05], up, box), false);
+  assert.equal(isLit([15, 5, 0.05], up, box), true);
 });
