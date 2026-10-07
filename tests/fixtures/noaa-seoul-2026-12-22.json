@@ -1,0 +1,14 @@
+{
+  "source": "https://gml.noaa.gov/grad/solcalc/",
+  "retrieved": "2026-10-07",
+  "date": "2026-12-22",
+  "lat": 37.5665,
+  "lon": 126.978,
+  "tzHours": 9,
+  "note": "NOAA Solar Calculator 화면 표시값 (Asia/Seoul, +09:00). 굴절 보정 여부는 페이지에 명시되지 않음. 태양 남중 12:30:14, 적위 -23.44.",
+  "rows": [
+    { "time": "09:00", "elevation": 11.57, "azimuth": 131.94 },
+    { "time": "12:00", "elevation": 28.61, "azimuth": 172.04 },
+    { "time": "15:00", "elevation": 19.65, "azimuth": 216.23 }
+  ]
+}

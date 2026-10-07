@@ -56,7 +56,7 @@ tests/  node --test (core만 대상)
 docs/superpowers/specs|plans/
 ```
 
-의존 라이브러리는 SunCalc, Three.js 두 개(CDN 또는 `vendor/` 복사). `core/`는 ES module로 브라우저와 노드에서 동일하게 import된다. `web/`은 `core/`만 호출한다. 구조는 `D:\1. 업무용\facade-generator`(`web/`, `tests/`, `docs/superpowers/`)를 참고한다.
+런타임 의존은 Three.js 하나(SunCalc는 테스트 교차검증용 devDependency)(CDN 또는 `vendor/` 복사). `core/`는 ES module로 브라우저와 노드에서 동일하게 import된다. `web/`은 `core/`만 호출한다. 구조는 `D:\1. 업무용\facade-generator`(`web/`, `tests/`, `docs/superpowers/`)를 참고한다.
 
 ### 데이터 모델 (좌표는 대지 로컬 미터)
 
@@ -69,7 +69,7 @@ docs/superpowers/specs|plans/
 
 | 모듈 | 책임 |
 |---|---|
-| `sun` | 날짜·시각·위경도 → 방위각/고도, 3D 방향 벡터(SunCalc 래핑, 방위 규약 변환). Three.js 조명도 이 값만 사용 |
+| `sun` | 날짜·시각·위경도 → 방위각/고도, 3D 방향 벡터(NOAA 알고리즘 직접 구현, 방위 규약 변환). Three.js 조명도 이 값만 사용 |
 | `geom` | 다각형 연산, 프리즘, 광선-프리즘 교차 |
 | `setback` | 허용 영역 계산 → 위반 조각 반환. 규칙이 함수 단위라 제86조③ 추가 가능 |
 | `sunhours` | 측정점 목록 → 점마다 `{ 최대 연속, 누적 }` |
@@ -133,7 +133,7 @@ Three.js는 코어의 태양 벡터로 조명 방향을 정하고, 그림자맵�
 
 ## 7. 검증
 
-- **태양 위치:** SunCalc 결과를 (a) 별도로 직접 구현한 NOAA 알고리즘, (b) NOAA Solar Calculator·KASI 값 몇 개(출처 URL과 조회일을 fixture에 기록)와 비교, 허용 오차 0.1°. SunCalc 방위 규약(남쪽 기준, 서쪽 양수, 라디안), 고도의 대기 굴절 포함 여부는 같은 조건으로 맞춰 비교(미확인 사항이므로 구현 시 확인). 서울 경도 126.98 사용.
+- **태양 위치:** 직접 구현한 NOAA 알고리즘 결과를 (a) SunCalc, (b) NOAA Solar Calculator·KASI 값 몇 개(출처 URL과 조회일을 fixture에 기록)와 비교, 허용 오차 0.1°. SunCalc 방위 규약(남쪽 기준, 서쪽 양수, 라디안), 고도의 대기 굴절 포함 여부는 같은 조건으로 맞춰 비교(미확인 사항이므로 구현 시 확인). 서울 경도 126.98 사용.
 - **사선 기하:** 손계산 케이스 — 정북이 위인 직사각형에서 높이 12m → 이격 6m, 정북 30° 회전, 높이 정확히 10m(1.5m↔5m 경계), L자 대지, 도로 변 이동(폭 w), 광선이 동쪽 변으로 나가는 경우.
 - **일조시간:** 동서로 무한히 긴 벽과 박스 케이스로 전이 시각을 손계산해 비교.
 - **건폐율·용적률:** 직사각형 합집합, 겹치는 볼륨.
