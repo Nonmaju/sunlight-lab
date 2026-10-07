@@ -77,6 +77,7 @@ function requestHeat() {
     };
     w.onerror = (e) => {
       if (w !== worker) return;
+      w.terminate(); worker = null; heatKey = ''; // 같은 입력으로 재시도하면 다시 실행되도록
       heatStatus.running = false; heatStatus.error = String(e.message || e);
       listeners.forEach((fn) => fn(state, null));
     };
@@ -87,4 +88,7 @@ onRender(() => requestHeat());
 
 render();
 
-import('./ui.js'); // ui.js는 main.js의 state/render를 import한다
+import('./ui.js').catch((err) => { // ui.js는 main.js의 state/render를 import한다
+  console.error(err);
+  document.getElementById('left').textContent = '화면을 불러오지 못했습니다. 콘솔을 확인하세요.';
+});
