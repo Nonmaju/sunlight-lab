@@ -114,3 +114,21 @@ export function selfIntersects(poly) {
   }
   return false;
 }
+
+// p: [x,y], d: unit direction [dx,dy], poly: vertices. Returns the sorted ray parameters s > 1e-9 where the ray crosses the polygon boundary.
+// Side rule: an edge counts iff its endpoints lie on different sides of the ray's line, with "side" = cross(d, v - p) > 0.
+// Proper crossing -> 1, tangent graze -> 0 or 2, ray through a vertex that enters/leaves -> exactly 1.
+export function rayCrossings(p, d, poly) {
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const sa = d[0] * (a[1] - p[1]) - d[1] * (a[0] - p[0]);
+    const sb = d[0] * (b[1] - p[1]) - d[1] * (b[0] - p[0]);
+    if ((sa > 0) === (sb > 0)) continue;
+    const ex = b[0] - a[0], ey = b[1] - a[1];
+    const den = d[0] * ey - d[1] * ex;
+    const s = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den;
+    if (s > 1e-9) out.push(s);
+  }
+  return out.sort((x, y) => x - y);
+}
