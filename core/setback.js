@@ -70,7 +70,7 @@ export function checkSetback(site, volumes, p = DEFAULT_PARAMS) {
         const s = rayHit(q, n, e.a, e.b, true);
         if (s !== null && s >= -1e-9) minL = Math.min(minL, Math.max(0, s));
       }
-      if (minL < Infinity) maxExcess = Math.max(maxExcess, pc.z1 - allowedHeight(minL, p));
+      if (minL < Infinity) maxExcess = Math.max(maxExcess, pc.z1 - Math.max(allowedHeight(minL, p), v.z0));
     }
     return { id: v.id, violates: pieces.length > 0, maxExcess, pieces };
   });

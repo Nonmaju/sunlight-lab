@@ -81,3 +81,17 @@ test('속성 테스트: 판정 영역 = 정북 광선 정의 (북 0°, 30°, -45
     assert.ok(checked > 500);
   }
 });
+
+test('공중에 뜬 볼륨(z0>0): 초과량은 볼륨 자신의 두께까지만 (손계산)', () => {
+  // 대지 정북 경계 y=30, 볼륨 y=28~29(L=1 → 허용 0m), z0=8, 상단 10 → 초과 = 10 - max(0, 8) = 2 (이전 공식은 10)
+  const [r] = checkSetback(SITE(), [vol(rect(3, 28, 17, 29), 2, 8)]);
+  assert.equal(r.violates, true);
+  near(r.maxExcess, 2);
+});
+
+test('적층 볼륨(z0=12, h=3, 정북 4m): 상단 15, 허용 10 → 초과 = 15 - max(10, 12) = 3', () => {
+  // 손계산: 상단 15m, L=4 → allowedHeight=10 → 12~15 구간 전체가 초과. v.z0=12가 허용 10보다 높아 초과 = 상단 − z0 = 3.
+  const [r] = checkSetback(SITE(), [vol(rect(3, 4, 17, 26), 3, 12)]);
+  assert.equal(r.violates, true);
+  near(r.maxExcess, 3);
+});
