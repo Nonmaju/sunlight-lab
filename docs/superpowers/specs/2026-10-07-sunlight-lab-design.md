@@ -56,14 +56,14 @@ tests/  node --test (core만 대상)
 docs/superpowers/specs|plans/
 ```
 
-런타임 의존은 Three.js 하나(SunCalc는 테스트 교차검증용 devDependency)(CDN 또는 `vendor/` 복사). `core/`는 ES module로 브라우저와 노드에서 동일하게 import된다. `web/`은 `core/`만 호출한다. 구조는 `D:\1. 업무용\facade-generator`(`web/`, `tests/`, `docs/superpowers/`)를 참고한다.
+런타임 의존은 Three.js 하나(CDN 또는 `vendor/` 복사)이며 SunCalc는 테스트 교차검증용 devDependency다. `core/`는 ES module로 브라우저와 노드에서 동일하게 import된다. `web/`은 `core/`만 호출한다. 구조는 `D:\1. 업무용\facade-generator`(`web/`, `tests/`, `docs/superpowers/`)를 참고한다.
 
 ### 데이터 모델 (좌표는 대지 로컬 미터)
 
 - `site`: `{ polygon: [[x,y],…], northAngleDeg, zone, edges: [{ tag, width? }] }`
   - 변 태그: `인접대지`(기본) / `도로·공원 등`(폭 `width`, 제86조⑥) / `적용제외`(제86조②3호)
 - `volumes[]`: `{ id, footprint: [[x,y],…], z0, h, role: 'mine' | 'neighbor' }` (계단형은 볼륨을 쌓아서 표현)
-- `settings`: `{ date, time, timeBasis: 'KST' | '진태양시', lat/lon(서울 기본), setbackParams: { lowH: 10, lowD: 1.5, ratio: 0.5 }, gridSpacing }`
+- `settings`: `{ date, timeMin, timeBasis: 'KST' | '진태양시', lat/lon(서울 기본), floorHeight(층고, 기본 3.0m, 연면적 층수 환산용), gridSpacing(일조 격자 간격 m, 기본 2), setbackParams: { lowH: 10, lowD: 1.5, ratio: 0.5 } }`
 
 ### 코어 함수 경계
 
@@ -110,7 +110,8 @@ Three.js는 코어의 태양 벡터로 조명 방향을 정하고, 그림자맵�
 5. 제86조②1·2호 미모델링
 6. 오목한 대지는 보수적으로 판정
 7. 시각 기준(표준시/진태양시) 기본값 미확정(확인 과제 2)
-8. 참고용, 법적 효력 없음
+8. 연면적 층수 환산은 임시 규칙: floor(높이 / `floorHeight`), 층고 기본 3.0m(확인 과제 4)
+9. 참고용, 법적 효력 없음
 
 ## 6. 화면과 흐름
 
@@ -133,7 +134,7 @@ Three.js는 코어의 태양 벡터로 조명 방향을 정하고, 그림자맵�
 
 ## 7. 검증
 
-- **태양 위치:** 직접 구현한 NOAA 알고리즘 결과를 (a) SunCalc, (b) NOAA Solar Calculator·KASI 값 몇 개(출처 URL과 조회일을 fixture에 기록)와 비교, 허용 오차 0.1°. SunCalc 방위 규약(남쪽 기준, 서쪽 양수, 라디안), 고도의 대기 굴절 포함 여부는 같은 조건으로 맞춰 비교(미확인 사항이므로 구현 시 확인). 서울 경도 126.98 사용.
+- **태양 위치:** 직접 구현한 NOAA 알고리즘 결과를 (a) SunCalc, (b) NOAA Solar Calculator·KASI 값 몇 개(출처 URL과 조회일을 fixture에 기록)와 비교. **실제 사용 허용 오차:** NOAA fixture 0.15°, SunCalc 교차검증 고도 0.3° / 방위 0.5°(당초 0.1°에서 조정). SunCalc 방위 규약(남쪽 기준, 서쪽 양수, 라디안)은 변환해 비교했다. NOAA 페이지는 표시값의 대기 굴절 보정 여부를 밝히지 않으며(fixture note) 이 점은 해결되지 않은 **미확인** 사항이다. 서울 경도 126.98 사용.
 - **사선 기하:** 손계산 케이스 — 정북이 위인 직사각형에서 높이 12m → 이격 6m, 정북 30° 회전, 높이 정확히 10m(1.5m↔5m 경계), L자 대지, 도로 변 이동(폭 w), 광선이 동쪽 변으로 나가는 경우.
 - **일조시간:** 동서로 무한히 긴 벽과 박스 케이스로 전이 시각을 손계산해 비교.
 - **건폐율·용적률:** 직사각형 합집합, 겹치는 볼륨.
@@ -155,3 +156,12 @@ Three.js는 코어의 태양 벡터로 조명 방향을 정하고, 그림자맵�
 
 - 접근안 A(순수 JS 코어 + CPU 광선 검사, Three.js는 표시 전용) 채택. 대안 B(그림자맵 샘플링)는 GPU/DOM 필요·노드 테스트 불가로 기각, 대안 C(프리즘 투영 합집합)는 벽면 격자와 비볼록 형상이 까다로워 보류. Opus 5.5 자문(2026-10-07) 반영.
 - 일정: 초기 브레인스토밍의 Opus 추정은 3~4주(미측정). v1 범위를 정북 사선으로 좁혔으므로 플랜 작성 후 단계별로 재추정.
+
+## 11. 구현 중 변경점
+
+- `core/validate.js`에 `validateState`(JSON 불러오기 스키마 검증) 추가: 불러온 파일의 구조 오류·HTML 주입·0/NaN 격자 간격으로 인한 Worker 정지를 막기 위함(입력 신뢰 경계, 8절 확장).
+- `core/geom.js`에 `rayCrossings`(정점 접촉에서 짝수/홀수가 맞는 교차 목록)와 `pointOnBoundary` 추가: 반개구간 `rayHit`은 정점 스침을 한 번만 세어 `isLit`의 구간 짝짓기에 쓸 수 없고, 반개구간 `pointInPolygon`은 동·북 경계 위 점을 밖으로 판정하기 때문.
+- 포함 판정을 경계 포함으로 변경(`validate`의 볼륨-대지 포함 검사): 대지 경계에 접한 건물이 오류로 거부되던 문제 수정.
+- `isLit`에서 측정점을 태양 쪽으로 1e-6 이동: 외벽·건물 경계 위의 점이 자기 볼륨에 가려져 양지로 잘못 판정되던 문제 방지.
+- 히트맵 Worker 수명 관리(입력 변경 시 즉시 종료·재시작, 오류 경로 초기화, `onerror`): 낡은 결과 표시와 "계산 중" 고착 방지. 속도 실측은 797점 203 ms(간격 2) / 12,077점 1310 ms(간격 0.5)이며 5.2절의 "3만 점 ≈ 1초" 추정은 재현되지 않았다.
+- UI는 숫자 입력이 비유한·비양수일 때 되돌린다(`gridSpacing ≥ 0.5`, `floorHeight ≥ 2`, `z0 ≥ 0`, `h > 0`): Worker 무한 루프 방지.
