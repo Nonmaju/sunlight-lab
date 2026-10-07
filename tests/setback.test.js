@@ -100,3 +100,33 @@ test('profile: Lmax가 크면 끝점 [Lmax, 2·Lmax], 작으면 꺾임점(5m) �
   assert.deepEqual(profile(P, 40).at(-1), [40, 80]);
   assert.deepEqual(profile(P, 3).at(-1), [6, 12]); // lowH*ratio + 1 = 6
 });
+
+test('오목(L자) 대지 오라클: 참 판정(정북 광선이 처음 만나는 변이 북향 적용 변이고 거리 < 요구거리)을 checkSetback이 놓치지 않는다', () => {
+  const polygon = [[0, 0], [20, 0], [20, 15], [10, 15], [10, 30], [0, 30]];
+  const site = SITE({ polygon });
+  const n = northVec(0);
+  const active = new Set(activeEdges(site).map((e) => e.index));
+  let hits = 0;
+  for (const [fp, h] of [[rect(12, 3, 19, 13), 13], [rect(1, 3, 19, 14), 15], [rect(2, 3, 9, 26), 21]]) {
+    const [r] = checkSetback(site, [vol(fp, h)]);
+    const cuts = zCuts(0, h);
+    for (let x = fp[0][0] + 0.13; x < fp[2][0]; x += 0.5) {
+      for (let y = fp[0][1] + 0.13; y < fp[2][1]; y += 0.5) {
+        // 모든 대지 변 중 정북으로 처음 만나는 변
+        let first = null;
+        polygon.forEach((a, i) => {
+          const s = rayHit([x, y], n, a, polygon[(i + 1) % polygon.length]);
+          if (s !== null && s >= 0 && (first === null || s < first.s)) first = { s, i };
+        });
+        if (!first || !active.has(first.i)) continue;
+        for (let k = 1; k < cuts.length; k++) {
+          const zb = cuts[k], d = requiredDistance(zb);
+          if (Math.abs(first.s - d) < 1e-6 || first.s >= d) continue;
+          hits++;
+          assert.ok(r.pieces.some((pc) => pc.z1 === zb && pointInPolygon([x, y], pc.poly)), `(${x},${y}) z=${zb} 참 위반인데 미표시`);
+        }
+      }
+    }
+  }
+  assert.ok(hits > 200, `hits=${hits}`);
+});

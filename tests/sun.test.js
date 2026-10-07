@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { sunPosition, instantMs, sunDirection } from '../core/sun.js';
+import { northVec } from '../core/setback.js';
 
 const require = createRequire(import.meta.url);
 const SunCalc = require('suncalc');
@@ -64,4 +65,20 @@ test('sunDirection: northAngle 0이면 정오 태양은 -y(남쪽), 90이면 -x'
   assert.ok(Math.abs(Math.hypot(a.x, a.y, a.z) - 1) < 1e-9);
   const b = sunDirection(ms, LAT, LON, 90);
   assert.ok(b.x < -0.5 && Math.abs(b.y) < 0.05);
+});
+
+test('sunDirection 좌표 규약: 방위 0°(정북)은 northVec(angle), 방위 180°는 그 반대 (R10)', () => {
+  const unit = (d) => { const h = Math.hypot(d.x, d.y); return [d.x / h, d.y / h]; };
+  for (const ang of [0, 30, -45]) {
+    const n = northVec(ang);
+    // 남반구(-37.57°) 동지 정오: 태양이 정북쪽, 방위 ≈ 0°
+    const north = sunDirection(instantMs('2026-12-22', 720, '진태양시', LON), -LAT, LON, ang);
+    assert.ok(angDiff(north.azimuth, 0) < 0.5, `az=${north.azimuth}`);
+    const un = unit(north);
+    assert.ok(Math.abs(un[0] - n[0]) < 0.01 && Math.abs(un[1] - n[1]) < 0.01, `ang=${ang} ${un} vs ${n}`);
+    // 서울 정오: 방위 ≈ 180° → -northVec
+    const south = sunDirection(instantMs('2026-12-22', 720, '진태양시', LON), LAT, LON, ang);
+    const us = unit(south);
+    assert.ok(Math.abs(us[0] + n[0]) < 0.01 && Math.abs(us[1] + n[1]) < 0.01, `ang=${ang} ${us} vs ${-n[0]},${-n[1]}`);
+  }
 });

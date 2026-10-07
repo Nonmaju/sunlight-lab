@@ -99,3 +99,12 @@ test('wallGrid: 연속 중복 꼭짓점(길이 0 변)이 있어도 NaN 없음', 
   assert.ok(pts.length > 0);
   assert.ok(pts.every((q) => q.p.every(Number.isFinite)));
 });
+
+test('isLit: 공중에 뜬 볼륨(z0=5, h=2) 아래 지표 점 — 낮은 남쪽 태양은 통과(양지), 높은 태양은 가려짐', () => {
+  const box = [{ id: 'f', footprint: rect(0, 0, 10, 10), z0: 5, h: 2, role: 'mine' }];
+  const low = { x: 0, y: -Math.cos(0.17), z: Math.sin(0.17) }; // 고도 ≈ 9.7°: 남쪽 변(5m)에서 높이 ≈ 1m < z0
+  assert.equal(isLit([5, 5, 0.05], low, box), true);
+  assert.equal(isLit([5, 5, 0.05], south45, box), false); // 45°: 남쪽 변에서 높이 5.05 > z0 → 하부 가림
+  assert.equal(isLit([5, 5, 0.05], { x: 0, y: 0, z: 1 }, box), false); // 정오 수직 태양
+  assert.equal(isLit([5, 5, 8], south45, box), true); // 볼륨 위쪽 점
+});
