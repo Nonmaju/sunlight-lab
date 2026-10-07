@@ -132,3 +132,14 @@ export function rayCrossings(p, d, poly) {
   }
   return out.sort((x, y) => x - y);
 }
+
+// p가 다각형 어느 변 위에 있는가 (선분까지 거리 <= eps).
+export function pointOnBoundary([px, py], poly, eps = 1e-9) {
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [ax, ay] = poly[j], [bx, by] = poly[i];
+    const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / l2));
+    if (Math.hypot(px - (ax + t * ex), py - (ay + t * ey)) <= eps) return true;
+  }
+  return false;
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { area, ccw, pointInPolygon, rayHit, rayCrossings, segCross, clipConvex, unionArea, selfIntersects } from '../core/geom.js';
+import { area, ccw, pointInPolygon, rayHit, rayCrossings, segCross, clipConvex, unionArea, selfIntersects, pointOnBoundary } from '../core/geom.js';
 
 const rect = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`);
@@ -75,4 +75,12 @@ test('rayCrossings: 정점 통과/접선/정상 교차', () => {
   graze.forEach((s) => near(s, 5 * Math.SQRT2));
   const prop = rayCrossings([5, -5], [0, 1], sq);
   assert.equal(prop.length, 2); near(prop[0], 5); near(prop[1], 15);
+});
+
+test('pointOnBoundary: 변 위/꼭짓점 true, 1e-6 어긋남·내부 false', () => {
+  const r = rect(0, 0, 10, 10);
+  assert.ok(pointOnBoundary([10, 5], r));
+  assert.ok(pointOnBoundary([10, 10], r));
+  assert.ok(!pointOnBoundary([10 + 1e-6, 5], r));
+  assert.ok(!pointOnBoundary([5, 5], r));
 });

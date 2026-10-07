@@ -36,3 +36,15 @@ test('unionArea: 기울어진 두 변이 교차하는 삼각형 쌍', () => {
   // 교집합 = ∫0..5 y dy + ∫5..10 (10-y) dy = 12.5 + 12.5 = 25 → 합집합 = 50+50-25 = 75.
   near(unionArea([[[0, 0], [10, 0], [5, 10]], [[0, 10], [10, 10], [5, 0]]]), 75, 1e-9);
 });
+
+test('h < floorHeight 이어도 최소 1층', () => {
+  const c = coverage(SITE, [{ id: 'a', footprint: rect(0, 0, 10, 10), z0: 0, h: 2, role: 'mine' }]);
+  near(c.gfa, 100);
+});
+
+test('시계방향 대지도 siteArea 양수, 비율 동일', () => {
+  const cw = { ...SITE, polygon: [...SITE.polygon].reverse() };
+  const vols = [{ id: 'a', footprint: rect(3, 4, 17, 26), z0: 0, h: 15, role: 'mine' }];
+  const a = coverage(SITE, vols), b = coverage(cw, vols);
+  near(b.siteArea, 600); near(b.coverageRatio, a.coverageRatio); near(b.far, a.far);
+});
