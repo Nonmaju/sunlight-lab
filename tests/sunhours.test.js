@@ -35,6 +35,14 @@ test('groundGrid: 볼륨 바닥 위 점 제외, 모든 점 z>0', () => {
   assert.ok(g.every((q) => !pointInPolygon([q.p[0], q.p[1]], vols[0].footprint) && q.p[2] > 0));
 });
 
+test('groundGrid: 필로티(공중 볼륨) 아래 지반점은 유지, 접지 볼륨 아래는 제외', () => {
+  const site = { polygon: rect(0, 0, 20, 30), northAngleDeg: 0, edges: [] };
+  const mk = (z0) => [{ id: 'a', footprint: rect(5, 5, 15, 15), z0, h: 9, role: 'mine' }];
+  const under = (g) => g.filter((q) => pointInPolygon([q.p[0], q.p[1]], rect(5, 5, 15, 15))).length;
+  assert.ok(under(groundGrid(site, mk(3), 2, 5)) > 0);
+  assert.equal(under(groundGrid(site, mk(0), 2, 5)), 0);
+});
+
 test('wallGrid: 10×10×6 이웃 박스, 간격 2 → 북향 제외 3면 × (5×3) = 45점, 모두 박스 밖', () => {
   const fp = rect(0, 0, 10, 10);
   const w = wallGrid([{ id: 'n', footprint: fp, z0: 0, h: 6, role: 'neighbor' }], 2, [0, 1]);

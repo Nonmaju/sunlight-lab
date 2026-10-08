@@ -34,7 +34,7 @@ export function groundGrid(site, volumes, spacing, margin = 15) {
   for (let i = 0; i < nx; i++) {
     for (let j = 0; j < ny; j++) {
       const x = x0 + i * spacing, y = y0 + j * spacing;
-      if (volumes.some((v) => pointInPolygon([x, y], v.footprint))) continue;
+      if (volumes.some((v) => v.z0 <= 0.05 && pointInPolygon([x, y], v.footprint))) continue; // 필로티(z0>0.05) 아래 지반점은 유지
       pts.push({ p: [x, y, 0.05], kind: 'ground' });
     }
   }
