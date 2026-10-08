@@ -40,6 +40,8 @@ test('validateState: site 거부', () => {
   bad((s) => { s.site.polygon = [[0, 0], [1, 1]]; });
   bad((s) => { s.site.polygon[0] = ['1', 2]; });
   bad((s) => { s.site.polygon[0] = [NaN, 2]; });
+  bad((s) => { s.site.polygon[0] = [1e6, 2]; });
+  bad((s) => { s.volumes[0].footprint[0] = [0, -1e9]; });
   bad((s) => { s.site.northAngleDeg = '0'; });
 });
 test('validateState: edges 거부/보충', () => {

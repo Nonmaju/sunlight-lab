@@ -35,7 +35,9 @@ export function validate(site, volumes) {
 const TAGS = ['인접대지', '도로·공원 등', '적용제외'];
 const fin = (x) => typeof x === 'number' && Number.isFinite(x);
 const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
-const isPts = (a, lo, hi) => Array.isArray(a) && a.length >= lo && a.length <= hi && a.every((p) => Array.isArray(p) && p.length === 2 && fin(p[0]) && fin(p[1]));
+const MAX_COORD = 1e5; // m. 이보다 크면 격자/렌더가 비정상적으로 커짐(ponytail: 임의 상한, 필요하면 조정)
+const coord = (x) => fin(x) && Math.abs(x) <= MAX_COORD;
+const isPts = (a, lo, hi) => Array.isArray(a) && a.length >= lo && a.length <= hi && a.every((p) => Array.isArray(p) && p.length === 2 && coord(p[0]) && coord(p[1]));
 const realDate = (s) => {
   if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const [y, m, d] = s.split('-').map(Number), t = new Date(Date.UTC(y, m - 1, d));
@@ -51,7 +53,7 @@ export function validateState(obj) {
   if (!isObj(obj) || !isObj(obj.settings)) top.push('settings(설정) 객체가 필요합니다');
   if (top.length) return { errors: top, state: null };
   const { site, volumes, settings: st } = obj;
-  if (!isPts(site.polygon, 3, 500)) errors.push('site.polygon: 꼭짓점 3~500개의 [x,y] 유한 숫자 배열이어야 합니다');
+  if (!isPts(site.polygon, 3, 500)) errors.push('site.polygon: 꼭짓점 3~500개의 [x,y] 숫자(절댓값 100000 이하) 배열이어야 합니다');
   if (!fin(site.northAngleDeg)) errors.push('site.northAngleDeg: 유한한 숫자여야 합니다');
   if (site.edges !== undefined) {
     if (!Array.isArray(site.edges)) errors.push('site.edges: 배열이어야 합니다');
@@ -66,7 +68,7 @@ export function validateState(obj) {
     const p = `volumes[${i}]`;
     if (!isObj(v)) { errors.push(`${p}: 객체여야 합니다`); return; }
     if (!(typeof v.id === 'string' || fin(v.id))) errors.push(`${p}.id: 문자열 또는 숫자여야 합니다`);
-    if (!isPts(v.footprint, 3, 500)) errors.push(`${p}.footprint: 꼭짓점 3~500개의 [x,y] 유한 숫자 배열이어야 합니다`);
+    if (!isPts(v.footprint, 3, 500)) errors.push(`${p}.footprint: 꼭짓점 3~500개의 [x,y] 숫자(절댓값 100000 이하) 배열이어야 합니다`);
     if (!(fin(v.z0) && v.z0 >= 0)) errors.push(`${p}.z0: 0 이상의 숫자여야 합니다`);
     if (!(fin(v.h) && v.h > 0)) errors.push(`${p}.h: 0보다 큰 숫자여야 합니다`);
     if (!['mine', 'neighbor'].includes(v.role)) errors.push(`${p}.role: mine 또는 neighbor여야 합니다`);
