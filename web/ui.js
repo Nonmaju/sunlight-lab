@@ -218,14 +218,19 @@ document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('cli
 
 // 선택한 다각형(대지/볼륨)의 좌표 텍스트 ↔ 상태
 const coordSel = $('#coord-sel'), coordText = $('#coord-text'), coordMsg = $('#coord-msg');
-const coordPoly = (st, v) => (v === 'site' ? st.site.polygon : st.volumes[+v.slice(1)]?.footprint);
+const volOf = (v) => state.volumes.find((x) => 'v:' + encodeURIComponent(String(x.id)) === v); // id 기준(볼륨 삭제·정렬에도 선택 유지)
+const coordPoly = (st, v) => (v === 'site' ? st.site.polygon : volOf(v)?.footprint);
+let coordDirty = false; // 적용 전 편집 중이면 다시 그릴 때 덮어쓰지 않는다
+const fillCoord = () => { coordDirty = false; coordText.value = coordPoly(state, coordSel.value).map(([x, y]) => `${x} ${y}`).join('\n'); };
+coordText.oninput = () => { coordDirty = true; };
 function refreshCoord() {
   const prev = coordSel.value;
-  coordSel.innerHTML = ['<option value="site">대지</option>', ...state.volumes.map((v, i) => `<option value="v${i}">볼륨 ${esc(v.id)}</option>`)].join('');
-  coordSel.value = [...coordSel.options].some((o) => o.value === prev) ? prev : 'site';
-  if (document.activeElement !== coordText) coordText.value = coordPoly(state, coordSel.value).map(([x, y]) => `${x} ${y}`).join('\n');
+  coordSel.innerHTML = ['<option value="site">대지</option>', ...state.volumes.map((v) => `<option value="v:${encodeURIComponent(String(v.id))}">볼륨 ${esc(v.id)}</option>`)].join('');
+  const kept = [...coordSel.options].some((o) => o.value === prev);
+  coordSel.value = kept ? prev : 'site';
+  if (!kept || !coordDirty) fillCoord();
 }
-coordSel.onchange = () => { coordMsg.textContent = ''; coordText.value = coordPoly(state, coordSel.value).map(([x, y]) => `${x} ${y}`).join('\n'); };
+coordSel.onchange = () => { coordMsg.textContent = ''; fillCoord(); };
 $('#coord-apply').onclick = () => {
   const pts = coordText.value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => l.split(/[\s,]+/).map(Number));
   if (pts.length < 3 || pts.some((p) => p.length !== 2 || !p.every(Number.isFinite))) { coordMsg.textContent = '꼭짓점 3개 이상, 줄마다 숫자 두 개(x y)가 필요합니다'; return; }
@@ -233,10 +238,11 @@ $('#coord-apply').onclick = () => {
   if (sel === 'site') {
     if (pts.length !== c.site.polygon.length) c.site.edges = pts.map(() => ({ tag: '인접대지' })); // 꼭짓점 수가 바뀌면 변 태그 초기화
     c.site.polygon = pts;
-  } else c.volumes[+sel.slice(1)].footprint = pts;
+  } else c.volumes.find((x) => 'v:' + encodeURIComponent(String(x.id)) === sel).footprint = pts;
   const { errors } = validate(c.site, c.volumes);
   if (errors.length) { coordMsg.textContent = errors[0]; return; }
   coordMsg.textContent = '';
+  coordDirty = false;
   mut((s) => { s.site = c.site; s.volumes = c.volumes; selEdge = null; fitted = false; });
 };
 
