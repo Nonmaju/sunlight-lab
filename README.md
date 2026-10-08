@@ -12,7 +12,7 @@ npm test         # node --test (core만 대상)
 npm run dev      # python -m http.server 8000 → http://localhost:8000/web/
 ```
 
-런타임 의존은 Three.js 하나(CDN import map, SRI 미적용)이며 SunCalc는 테스트에서만 쓴다. `web/`이 `../core`를 import하므로 저장소 루트를 서빙해야 한다(`web/`만 서빙하면 동작하지 않는다).
+런타임 의존은 Three.js 하나(CDN import map, SRI integrity 적용)이며 SunCalc는 테스트에서만 쓴다. `web/`이 `../core`를 import하므로 저장소 루트를 서빙해야 한다(`web/`만 서빙하면 동작하지 않는다).
 
 ## 구조
 
