@@ -56,7 +56,7 @@ export function createView(container) {
   };
 
   function clear() {
-    dyn.traverse((o) => { o.geometry?.dispose?.(); });
+    dyn.traverse((o) => { o.geometry?.dispose?.(); [].concat(o.material ?? []).forEach((m) => m.dispose?.()); });
     dyn.clear();
   }
 
