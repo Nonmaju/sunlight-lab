@@ -10,7 +10,15 @@ export const HEAT_DATE = '2026-12-22';
 
 export const state = { ...cloneState(SAMPLES.violation), view: { mode: 'shadow', metric: 'continuous' }, limits: { coverage: null, far: null } }; // limits: UI 전용(내보내기·validateState 대상 아님)
 let heat = null; // Task 8에서 채움
-const view = createView(document.getElementById('view3d'));
+function makeView() {
+  const el = document.getElementById('view3d');
+  try { return createView(el); } catch (e) { // WebGL 미지원/초기화 실패: 3D만 끄고 평면도는 유지
+    console.error(e);
+    el.textContent = '이 브라우저에서는 3D 뷰(WebGL)를 쓸 수 없습니다. 평면도와 수치 결과는 그대로 사용할 수 있습니다.';
+    return { update() {}, resize() {} };
+  }
+}
+const view = makeView();
 const listeners = [];
 export const onRender = (fn) => listeners.push(fn);
 
