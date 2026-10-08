@@ -53,6 +53,7 @@ export function sunPosition(ms, latDeg, lonDeg) {
 export function instantMs(dateStr, minutes, basis, lonDeg) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const utcMidnight = Date.UTC(y, m - 1, d);
+  if (basis !== 'KST' && basis !== '진태양시') throw new Error(`알 수 없는 시각 기준: ${basis}`);
   if (basis === 'KST') return utcMidnight + (minutes - 540) * 60000;
   let ms = utcMidnight + (minutes - 4 * lonDeg) * 60000;
   for (let i = 0; i < 3; i++) ms = utcMidnight + (minutes - solarParams(ms).eqTime - 4 * lonDeg) * 60000;

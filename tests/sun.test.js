@@ -58,6 +58,11 @@ test('NOAA 계산기 기준값 fixture (손으로 옮긴 값, 오차 0.15°)', (
   }
 });
 
+test('instantMs: 알 수 없는 시각 기준은 오류', () => {
+  assert.throws(() => instantMs('2026-12-22', 720, 'kst', LON), /시각 기준/);
+  assert.throws(() => instantMs('2026-12-22', 720, undefined, LON), /시각 기준/);
+});
+
 test('sunDirection: northAngle 0이면 정오 태양은 -y(남쪽), 90이면 -x', () => {
   const ms = instantMs('2026-12-22', 720, '진태양시', LON);
   const a = sunDirection(ms, LAT, LON, 0);

@@ -48,6 +48,13 @@ test('clipConvex: 완전히 밖이면 빈 배열', () => {
   assert.equal(clipConvex(rect(0, 0, 1, 1), rect(5, 5, 6, 6)).length, 0);
 });
 
+test('clipConvex: 오목 L자 대상 — 면적 정확, 노치만 걸치면 한쪽 팔만 남음', () => {
+  const L = [[0, 0], [20, 0], [20, 15], [10, 15], [10, 30], [0, 30]]; // 면적 450
+  near(Math.abs(area(clipConvex(L, rect(0, 12, 20, 30)))), 60 + 150);
+  near(Math.abs(area(clipConvex(L, rect(12, 0, 20, 30)))), 8 * 15);
+  near(Math.abs(area(clipConvex(L, rect(-5, -5, 40, 40)))), 450);
+});
+
 test('unionArea: 겹치는 두 정사각형 = 175, 떨어진 두 개 = 합, 동일 도형 = 단일', () => {
   near(unionArea([rect(0, 0, 10, 10), rect(5, 5, 15, 15)]), 175);
   near(unionArea([rect(0, 0, 10, 10), rect(20, 0, 30, 10)]), 200);
