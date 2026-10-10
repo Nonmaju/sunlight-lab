@@ -8,7 +8,7 @@ const site = () => ({
 });
 
 const settings = () => ({
-  date: '2026-12-22', // 동지일(KST 기준으로 사용). 날짜는 KASI 월력요항으로 확인 필요(README 확인 과제)
+  date: '2026-12-22', // 동지일(KST 기준으로 사용). KASI 월력요항(2026) 동지 12월 22일 05:50 KST 확인
   timeMin: 720,
   timeBasis: 'KST',
   lat: 37.5665,

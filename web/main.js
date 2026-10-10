@@ -5,7 +5,7 @@ import { coverage } from '../core/coverage.js';
 import { instantMs, sunDirection } from '../core/sun.js';
 import { createView } from './view3d.js';
 
-// 동지일. 날짜는 KASI 월력요항으로 확인 필요(spec §9). 히트맵은 항상 이 날짜로 계산한다.
+// 동지일. KASI 월력요항(2026): 동지 12월 22일 05:50 KST 확인. 히트맵은 항상 이 날짜로 계산한다.
 export const HEAT_DATE = '2026-12-22';
 
 export const state = { ...cloneState(SAMPLES.violation), view: { mode: 'shadow', metric: 'continuous' }, limits: { coverage: null, far: null } }; // limits: UI 전용(내보내기·validateState 대상 아님)
