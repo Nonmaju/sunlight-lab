@@ -2,6 +2,7 @@ import { state, setState, render, onRender, heatStatus, HEAT_DATE } from './main
 import { SAMPLES, cloneState } from '../core/samples.js';
 import { HEAT_STOPS, HEAT_MAX_MIN } from './view3d.js';
 import { validate, validateState, realDate } from '../core/validate.js';
+import { instantMs } from '../core/sun.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -14,14 +15,20 @@ const numField = (input, get, min, set) => (input.onchange = () => {
   if (input.value.trim() === '' || !Number.isFinite(v) || v < min) { input.value = get(); return; }
   mut((s) => set(s, v));
 });
+const hhmm = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(11, 16);
+const otherWindow = (st) => { // 선택한 기준의 09~15시가 다른 기준(표준시 시계)으로 몇 시인지
+  if (st.timeBasis !== '진태양시') return '';
+  const f = (m) => hhmm(instantMs(HEAT_DATE, m, '진태양시', st.lon));
+  return `= 표준시(KST) ${f(540)}~${f(900)}`;
+};
 const ASSUMPTIONS = [
   '지표면은 평지로 가정(제119조 평균 수평면 미적용)',
   '옥탑·승강기탑 높이 예외 미적용(전체 높이 산입)',
   '조례값 대신 시행령 하한 기본 적용(1.5m / 10m / 높이의 1/2)',
-  '정북 방향 직선 거리로 측정(국토부 해석 미확인)',
+  '정북 방향 직선 거리로 측정(국토부 해석 미확인). 경계가 정북과 기울어 있으면 경계 수직거리 방식보다 위반을 덜 표시할 수 있음(비보수적)',
   '제86조②1·2호 미모델링, ②3호는 변 태그 「적용제외」로 수동 지정',
   '오목한 대지·여러 변이 겹치는 경우 보수적(과다 표시 가능)',
-  '시각 기준(표준시/진태양시) 기본값 미확정 — 토글로 비교',
+  '시각 기준(표준시/진태양시): 법문에 명시 없음, 기본값 미확정 — 토글로 비교(진태양시 09~15시 = 서울 표준시 약 09:30~15:30)',
   '연면적 층수 환산은 임시 규칙: floor(높이 / 층고), 층고 기본 3.0m',
   '참고용, 법적 효력 없음',
 ];
@@ -292,7 +299,7 @@ onRender((s, d) => {
     <div id="heat-status">${heatStatus.error ? `히트맵 계산 오류: ${esc(heatStatus.error)}` : heatStatus.running ? '계산 중…' : heatStatus.ms ? `계산 ${Math.round(heatStatus.ms)}ms` : ''}</div>
     <div class="legend" style="background:linear-gradient(90deg,${stops})"></div>
     <div style="position:relative;height:1.4em"><small style="position:absolute;left:0">0</small><small id="tick2" style="position:absolute;left:${(120 / HEAT_MAX_MIN) * 100}%;transform:translateX(-50%);white-space:nowrap">2시간(참고 기준)</small><small style="position:absolute;right:0">${HEAT_MAX_MIN / 60}시간</small></div>
-    <small>지표: ${s.view.metric === 'total' ? '누적' : '연속'} · 동지(${HEAT_DATE}) 09~15시 · 격자 ${s.settings.gridSpacing}m · ${s.settings.timeBasis}<br>
+    <small>지표: ${s.view.metric === 'total' ? '누적' : '연속'} · 동지(${HEAT_DATE}) 09~15시(${s.settings.timeBasis}) ${otherWindow(s.settings)} · 격자 ${s.settings.gridSpacing}m <br>
     2시간 기준은 제86조③2호(공동주택 동간거리 대체 기준) 표현에서 가져온 참고 기준입니다.</small>`}
     <details open><summary>가정 목록</summary><ol>${ASSUMPTIONS.map((a) => `<li>${a}</li>`).join('')}</ol></details>`;
 });
