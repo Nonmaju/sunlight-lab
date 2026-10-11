@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { activeEdges, northVec, profile } from '../core/setback.js';
+import { scenePalette } from './theme.js';
 
 export const HEAT_MAX_MIN = 360;
 export const HEAT_STOPS = [[0x44, 0x01, 0x54], [0x21, 0x90, 0x8d], [0xfd, 0xe7, 0x25]]; // viridis 3점 보간
@@ -11,28 +12,30 @@ export function heatColor(minutes) {
   return [0, 1, 2].map((k) => (a[k] + (b[k] - a[k]) * f) / 255);
 }
 
-const TAG_COLOR = { 인접대지: 0x2c3e50, '도로·공원 등': 0x2980b9, 적용제외: 0x95a5a6 };
-
 export function createView(container) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.shadowMap.enabled = true;
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xf2f2f2);
+  scene.background = new THREE.Color(scenePalette().bg);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 2000);
   camera.up.set(0, 0, 1);
   camera.position.set(-40, -70, 60);
   const controls = new OrbitControls(camera, renderer.domElement);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 0.7));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x888888, scenePalette().hemi);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 1.6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -80, right: 80, top: 80, bottom: -80, near: 1, far: 500 });
   scene.add(sun, sun.target);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
-  ground.receiveShadow = true;
+  // 바닥은 조명을 받지 않는 평면(팔레트 색 그대로)이고, 그림자는 그 위의 투명한 그림자 받는 면이 그린다.
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ color: scenePalette().ground }));
   ground.position.z = -0.02;
-  scene.add(ground);
+  const catcher = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.ShadowMaterial({ opacity: scenePalette().shade }));
+  catcher.receiveShadow = true;
+  catcher.position.z = -0.01;
+  scene.add(ground, catcher);
   const dyn = new THREE.Group();
   scene.add(dyn);
 
@@ -60,6 +63,9 @@ export function createView(container) {
     dyn.clear();
   }
 
+  // 테마가 바뀌면 배경·바닥 색을 갱신한다(볼륨 등 나머지는 update()가 팔레트를 읽어 다시 만든다)
+  const applyScene = () => { const p = scenePalette(); scene.background.set(p.bg); ground.material.color.set(p.ground); catcher.material.opacity = p.shade; hemi.intensity = p.hemi; };
+
   function setbackSurface(site, params, maxTop) {
     const n = northVec(site.northAngleDeg), prof = profile(params, Math.max(14, maxTop * params.ratio + 2));
     const pos = [];
@@ -73,7 +79,7 @@ export function createView(container) {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x27ae60, transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false }));
+    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: scenePalette().setback, transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false }));
   }
 
   function heatPoints(heat, metric) {
@@ -86,7 +92,14 @@ export function createView(container) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    return new THREE.Points(g, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true }));
+    const pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true }));
+    const ring = scenePalette().ring; // 다크 E1: 어두운 점이 바닥에 묻히지 않게 밝은 테두리를 점 뒤에 깐다
+    if (ring === null) return pts;
+    const back = new THREE.Points(g, new THREE.PointsMaterial({ size: 8.6, sizeAttenuation: false, color: ring, transparent: true, opacity: 0.55, depthWrite: false }));
+    const grp = new THREE.Group();
+    back.renderOrder = 1; pts.renderOrder = 2;
+    grp.add(back, pts);
+    return grp;
   }
 
   function update(state, ctx) {
@@ -110,6 +123,8 @@ export function createView(container) {
     if (up) { const d = radius * 3 + 100; sun.position.set(cx + sunDir.x * d, cy + sunDir.y * d, sunDir.z * d); }
     ground.position.set(cx, cy, -0.02);
     ground.scale.setScalar(Math.max(1, (radius * 6) / 400));
+    catcher.position.set(cx, cy, -0.01);
+    catcher.scale.copy(ground.scale);
     if (!view.center || Math.hypot(cx - view.center[0], cy - view.center[1]) > 1) {
       const t = controls.target, from = view.center ? [t.x, t.y] : null;
       t.set(cx, cy, 5);
@@ -122,12 +137,12 @@ export function createView(container) {
       const b = site.polygon[(i + 1) % site.polygon.length];
       const tag = site.edges?.[i]?.tag ?? '인접대지';
       const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a[0], a[1], 0.05), new THREE.Vector3(b[0], b[1], 0.05)]);
-      dyn.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: TAG_COLOR[tag] ?? 0x2c3e50 })));
+      dyn.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: scenePalette().tag[tag] ?? 0x2c3e50 })));
     });
     // 볼륨
     const ghost = mode !== 'shadow';
     for (const v of volumes) {
-      const color = v.role === 'neighbor' ? 0x9aa5b1 : 0x3b82c4;
+      const color = v.role === 'neighbor' ? scenePalette().neighbor : scenePalette().mine;
       const mat = new THREE.MeshStandardMaterial({ color, transparent: ghost, opacity: ghost ? 0.35 : 1 });
       dyn.add(prism(v.footprint, v.z0, v.h, mat, !ghost));
     }
@@ -135,7 +150,7 @@ export function createView(container) {
       dyn.add(setbackSurface(site, settings.setbackParams, maxTop));
       for (const r of violations ?? []) {
         for (const pc of r.pieces) {
-          dyn.add(prism(pc.poly, pc.z0, pc.z1 - pc.z0, new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.85 }), false));
+          dyn.add(prism(pc.poly, pc.z0, pc.z1 - pc.z0, new THREE.MeshBasicMaterial({ color: scenePalette().violation, transparent: true, opacity: 0.85 }), false));
         }
       }
     }
@@ -143,6 +158,6 @@ export function createView(container) {
   }
 
   resize();
-  const view = { update, resize, center: null };
+  const view = { update, resize, applyScene, center: null };
   return view;
 }

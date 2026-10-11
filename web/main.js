@@ -4,6 +4,7 @@ import { checkSetback } from '../core/setback.js';
 import { coverage } from '../core/coverage.js';
 import { instantMs, sunDirection } from '../core/sun.js';
 import { createView } from './view3d.js';
+import { onTheme } from './theme.js';
 
 // 동지일. KASI 월력요항(2026): 동지 12월 22일 05:50 KST 확인. 히트맵은 항상 이 날짜로 계산한다.
 export const HEAT_DATE = '2026-12-22';
@@ -19,6 +20,7 @@ function makeView() {
   }
 }
 const view = makeView();
+onTheme(() => { view.applyScene?.(); render(); });
 const listeners = [];
 export const onRender = (fn) => listeners.push(fn);
 

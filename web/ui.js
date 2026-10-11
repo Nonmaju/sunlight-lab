@@ -3,6 +3,7 @@ import { SAMPLES, cloneState } from '../core/samples.js';
 import { HEAT_STOPS, HEAT_MAX_MIN } from './view3d.js';
 import { validate, validateState, realDate } from '../core/validate.js';
 import { instantMs } from '../core/sun.js';
+import { planPalette } from './theme.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -110,10 +111,10 @@ function renderVolumes() {
   const box = $('#vols');
   box.innerHTML = '';
   state.volumes.forEach((v, i) => {
-    const row = el(`<div class="row"><b>${esc(v.id)}</b>
+    const row = el(`<div class="row vol"><b>${esc(v.id)}</b>
       <select><option value="mine">내 건물</option><option value="neighbor">이웃</option></select>
-      z0<input type="number" step="0.5" value="${v.z0}"> h<input type="number" step="0.5" value="${v.h}">
-      <button>삭제</button></div>`);
+      <button>삭제</button>
+      <div class="dims"><label>z0 <input type="number" step="0.5" value="${v.z0}"></label><label>h <input type="number" step="0.5" value="${v.h}"></label></div></div>`);
     const [sel, z0, h, del] = [row.querySelector('select'), ...row.querySelectorAll('input'), row.querySelector('button')];
     sel.value = v.role;
     sel.onchange = () => mut((s) => { s.volumes[i].role = sel.value; });
@@ -143,32 +144,31 @@ function fit() {
   T.oy = h - (h - (Math.max(...ys) - Math.min(...ys)) * T.scale) / 2 + Math.min(...ys) * T.scale;
 }
 
-const EDGE_COLOR = { 인접대지: '#2c3e50', '도로·공원 등': '#2980b9', 적용제외: '#95a5a6' };
 function drawPlan() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; fitted = false; } // 크기 변하면 다시 맞춤
   if (!fitted && w) { fit(); fitted = true; }
-  const c = ctx2;
+  const c = ctx2, P = planPalette();
   c.clearRect(0, 0, canvas.width, canvas.height);
   const poly = (pts, close = true) => { c.beginPath(); pts.forEach((p, i) => { const [x, y] = toS(p); i ? c.lineTo(x, y) : c.moveTo(x, y); }); if (close) c.closePath(); };
   state.volumes.forEach((v) => {
     poly(v.footprint);
-    c.fillStyle = v.role === 'neighbor' ? 'rgba(150,160,170,.5)' : 'rgba(59,130,196,.45)';
-    c.fill(); c.strokeStyle = '#34495e'; c.lineWidth = 1; c.stroke();
-    const [x, y] = toS(v.footprint[0]); c.fillStyle = '#222'; c.fillText(`${v.id} h${v.h}`, x + 3, y - 3);
+    c.fillStyle = v.role === 'neighbor' ? P.neighbor : P.mine;
+    c.fill(); c.strokeStyle = P.stroke; c.lineWidth = 1; c.stroke();
+    const [x, y] = toS(v.footprint[0]); c.fillStyle = P.label; c.fillText(`${v.id} h${v.h}`, x + 3, y - 3);
   });
   const sp = state.site.polygon;
   sp.forEach((a, i) => {
     const b = sp[(i + 1) % sp.length], tag = state.site.edges?.[i]?.tag ?? '인접대지';
     poly([a, b], false);
-    c.strokeStyle = EDGE_COLOR[tag]; c.lineWidth = i === selEdge ? 5 : 2.5; c.stroke();
+    c.strokeStyle = P.tag[tag]; c.lineWidth = i === selEdge ? 5 : 2.5; c.stroke();
   });
-  [...sp, ...state.volumes.flatMap((v) => v.footprint)].forEach((p) => { const [x, y] = toS(p); c.fillStyle = '#c0392b'; c.fillRect(x - 3, y - 3, 6, 6); });
-  if (drawing) { poly(drawing.pts, false); c.strokeStyle = '#e67e22'; c.lineWidth = 2; c.stroke(); }
+  [...sp, ...state.volumes.flatMap((v) => v.footprint)].forEach((p) => { const [x, y] = toS(p); c.fillStyle = P.vertex; c.fillRect(x - 3, y - 3, 6, 6); });
+  if (drawing) { poly(drawing.pts, false); c.strokeStyle = P.drawing; c.lineWidth = 2; c.stroke(); }
   // 정북 화살표
   const a = (state.site.northAngleDeg * Math.PI) / 180, cx = canvas.width - 40, cy = 50;
-  c.strokeStyle = '#c0392b'; c.lineWidth = 3; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * 28, cy - Math.cos(a) * 28); c.stroke();
-  c.fillStyle = '#c0392b'; c.fillText('정북', cx + Math.sin(a) * 34 - 8, cy - Math.cos(a) * 34);
+  c.strokeStyle = P.north; c.lineWidth = 3; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * 28, cy - Math.cos(a) * 28); c.stroke();
+  c.fillStyle = P.north; c.fillText('정북', cx + Math.sin(a) * 34 - 8, cy - Math.cos(a) * 34);
 }
 
 function hit(sx, sy) {
@@ -285,16 +285,20 @@ onRender((s, d) => {
   refreshCoord();
   showEdgePanel();
   drawPlan();
-  const pct = (v) => (v * 100).toFixed(1) + '%';
+  const num = (v) => (v * 100).toFixed(1);
   const lim = (ratio, l) => (l === null ? '' : ` <small>한도 ${l}% — ${ratio * 100 > l + 1e-9 ? '<b class="err">초과</b>' : '이내'}</small>`);
   right.innerHTML = `
-    <div class="disclaimer" style="display:inline-block">참고용, 법적 효력 없음</div>
     ${d.errors.length ? `<h3 class="err">입력 오류</h3><ul class="err">${d.errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : `
-    <h3>건폐율·용적률</h3>
-    <div>대지면적 ${d.cov.siteArea.toFixed(1)}㎡ · 건축면적 ${d.cov.buildingArea.toFixed(1)}㎡ · 연면적 ${d.cov.gfa.toFixed(1)}㎡</div>
-    <div><b>건폐율 ${pct(d.cov.coverageRatio)}</b>${lim(d.cov.coverageRatio, s.limits.coverage)} · <b>용적률 ${pct(d.cov.far)}</b>${lim(d.cov.far, s.limits.far)} <small>(법정 한도는 앱에 내장하지 않음)</small></div>
+    <h3>건폐율 · 용적률</h3>
+    <div class="stats">
+      <div class="stat"><div class="k">건폐율</div><div class="big">${num(d.cov.coverageRatio)}<span class="unit">%</span></div>${lim(d.cov.coverageRatio, s.limits.coverage)}</div>
+      <div class="stat"><div class="k">용적률</div><div class="big">${num(d.cov.far)}<span class="unit">%</span></div>${lim(d.cov.far, s.limits.far)}</div>
+    </div>
+    <div class="stat-sub">대지 ${d.cov.siteArea.toFixed(1)}㎡ · 건축 ${d.cov.buildingArea.toFixed(1)}㎡ · 연면적 ${d.cov.gfa.toFixed(1)}㎡<br><small>법정 한도는 앱에 내장하지 않음</small></div>
     <h3>정북 사선</h3>
-    ${d.violations.map((r) => `<div>${esc(r.id)}: ${r.violates ? `<b class="err">위반</b> (최대 초과 ${r.maxExcess.toFixed(2)}m)` : '위반 없음'}</div>`).join('') || '내 건물 없음'}
+    ${d.violations.map((r) => (r.violates
+      ? `<div class="vcard bad"><span class="chip">${esc(r.id)}</span><div class="t">위반<small>최대 초과</small></div><div class="n">${r.maxExcess.toFixed(2)}<i>m</i></div></div>`
+      : `<div class="vcard ok"><span class="chip">${esc(r.id)}</span><div class="t">위반 없음</div></div>`)).join('') || '내 건물 없음'}
     <h3>일조 히트맵</h3>
     <div id="heat-status">${heatStatus.error ? `히트맵 계산 오류: ${esc(heatStatus.error)}` : heatStatus.running ? '계산 중…' : heatStatus.ms ? `계산 ${Math.round(heatStatus.ms)}ms` : ''}</div>
     <div class="legend" style="background:linear-gradient(90deg,${stops})"></div>
