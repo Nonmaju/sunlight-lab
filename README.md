@@ -4,6 +4,8 @@
 
 **참고용, 법적 효력 없음.** 이 도구의 결과는 인허가·설계 판단의 근거가 될 수 없다.
 
+**데모:** https://nonmaju.github.io/sunlight-lab/ (왼쪽 위 "사선 위반 사례" 버튼으로 바로 시험할 수 있다)
+
 ## 실행
 
 ```bash
@@ -96,4 +98,4 @@ docs/superpowers/specs|plans/
 
 ## 배포·공개
 
-배포·저장소 공개 전에 사용자의 명시 승인이 필요하다. 현재 비공개 상태이며 배포하지 않았다.
+저장소는 공개이며 GitHub Pages(main 브랜치 루트)로 배포한다. 루트 `index.html`이 `web/`으로 이동시킨다. 라이선스는 MIT(`LICENSE`).
