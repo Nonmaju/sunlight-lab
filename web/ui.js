@@ -1,4 +1,4 @@
-import { state, setState, render, onRender, heatStatus, HEAT_DATE } from './main.js';
+import { state, setState, render, onRender, heatStatus, HEAT_DATE, snapshot, record, undo, redo, canUndo, canRedo, onHistory } from './main.js';
 import { SAMPLES, cloneState } from '../core/samples.js';
 import { HEAT_STOPS, HEAT_MAX_MIN } from './view3d.js';
 import { validate, validateState, realDate } from '../core/validate.js';
@@ -9,7 +9,7 @@ const $ = (s) => document.querySelector(s);
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
 const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const nextId = () => 'V' + (Math.max(0, ...state.volumes.map((v) => +/^V(\d+)$/.exec(v.id)?.[1] || 0)) + 1);
-const mut = (fn) => { fn(state); render(); };
+const mut = (fn, key) => { const before = snapshot(); fn(state); record(before, key); render(); }; // key: 같은 key의 연속 변경(슬라이더 등)은 한 단계로 묶는다
 // 숫자 입력 가드: 비유한·범위 밖 값은 이전 값으로 복원(상태 변경/렌더 없음)
 const numField = (input, get, min, set) => (input.onchange = () => {
   const v = Number(input.value);
@@ -61,7 +61,7 @@ left.append(el(`<div>
   <h3>파일</h3>
   <div class="row"><button id="export">JSON 내보내기</button><button id="import">불러오기</button><input id="file" type="file" accept="application/json" hidden></div>
 </div>`));
-const load = (j) => { Object.assign(state, cloneState(j)); selEdge = null; fitted = false; render(); };
+const load = (j) => { const before = snapshot(); Object.assign(state, cloneState(j)); record(before); selEdge = null; fitted = false; render(); };
 $('#s-vio').onclick = () => load(SAMPLES.violation);
 $('#s-ok').onclick = () => load(SAMPLES.compliant);
 numField($('#north'), () => state.site.northAngleDeg, -Infinity, (s, v) => { s.site.northAngleDeg = v; });
@@ -69,7 +69,7 @@ $('#date').onchange = (e) => {
   if (!realDate(e.target.value)) { e.target.value = state.settings.date; return; }
   mut((s) => { s.settings.date = e.target.value; });
 };
-$('#time').oninput = (e) => mut((s) => { s.settings.timeMin = +e.target.value; });
+$('#time').oninput = (e) => mut((s) => { s.settings.timeMin = +e.target.value; }, 'time');
 $('#basis').onchange = (e) => mut((s) => { s.settings.timeBasis = e.target.value; });
 numField($('#fh'), () => state.settings.floorHeight, 2, (s, v) => { s.settings.floorHeight = v; });
 numField($('#gs'), () => state.settings.gridSpacing, 0.5, (s, v) => { s.settings.gridSpacing = v; });
@@ -128,7 +128,7 @@ function renderVolumes() {
 // ───────── 평면 편집 캔버스 ─────────
 const canvas = $('#plan'), ctx2 = canvas.getContext('2d');
 const T = { scale: 8, ox: 60, oy: 0 };
-let tool = 'select', drawing = null, drag = null, selEdge = null, fitted = false;
+let tool = 'select', drawing = null, drag = null, dragBefore = null, selEdge = null, fitted = false;
 const toS = ([x, y]) => [T.ox + x * T.scale, T.oy - y * T.scale];
 const toW = (sx, sy) => [Math.round(((sx - T.ox) / T.scale) * 10) / 10, Math.round(((T.oy - sy) / T.scale) * 10) / 10];
 
@@ -194,6 +194,7 @@ canvas.addEventListener('mousedown', (e) => {
   const [sx, sy] = xy(e);
   if (tool !== 'select') { drawing ??= { pts: [] }; drawing.pts.push(toW(sx, sy)); drawPlan(); return; }
   drag = hit(sx, sy);
+  dragBefore = drag ? snapshot() : null;
   if (!drag) { selEdge = hitEdge(sx, sy); showEdgePanel(); drawPlan(); }
 });
 canvas.addEventListener('mousemove', (e) => {
@@ -202,15 +203,36 @@ canvas.addEventListener('mousemove', (e) => {
   if (drag.kind === 'site') state.site.polygon[drag.idx] = p; else state.volumes[drag.vi].footprint[drag.idx] = p;
   render();
 });
-window.addEventListener('mouseup', () => { drag = null; });
+window.addEventListener('mouseup', () => { if (drag && dragBefore) record(dragBefore); drag = null; dragBefore = null; });
 function finishDrawing() {
   if (!drawing || drawing.pts.length < 3) { drawing = null; return; }
+  const before = snapshot();
   if (tool === 'site') { state.site.polygon = drawing.pts; state.site.edges = drawing.pts.map(() => ({ tag: '인접대지' })); selEdge = null; }
   else state.volumes.push({ id: nextId(), footprint: drawing.pts, z0: 0, h: 9, role: 'mine' });
+  record(before);
   drawing = null; setTool('select'); fitted = false; render();
 }
 canvas.addEventListener('dblclick', () => { if (drawing) { drawing.pts.pop(); finishDrawing(); } });
 window.addEventListener('keydown', (e) => { if (e.key === 'Enter') finishDrawing(); if (e.key === 'Escape') { drawing = null; setTool('select'); drawPlan(); } });
+
+// ───────── 되돌리기/다시 실행 (버튼, Ctrl/Cmd+Z, Ctrl+Shift+Z, Ctrl+Y) ─────────
+const syncHist = () => { $('#undo').disabled = !canUndo(); $('#redo').disabled = !canRedo(); };
+const stepHist = (fn) => { drawing = null; selEdge = null; fitted = false; if (fn()) syncHist(); };
+$('#undo').onclick = () => stepHist(undo);
+$('#redo').onclick = () => stepHist(redo);
+onHistory(syncHist);
+syncHist();
+// 입력칸에 아직 확정하지 않은 글자가 있으면(dirty) 브라우저 기본 되돌리기를 쓰고, 아니면 앱 되돌리기를 쓴다.
+document.addEventListener('input', (e) => { if (e.target.matches?.('input[type=number], input[type=date], textarea')) e.target.dataset.dirty = '1'; });
+document.addEventListener('change', (e) => { if (e.target.dataset) delete e.target.dataset.dirty; });
+window.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  if (e.target.dataset?.dirty) return;
+  const k = e.key.toLowerCase();
+  if (k !== 'z' && k !== 'y') return;
+  e.preventDefault();
+  stepHist(k === 'y' || e.shiftKey ? redo : undo);
+});
 
 function setTool(t) { tool = t; document.querySelectorAll('#toolbar button').forEach((b) => b.classList.toggle('on', b.dataset.t === t)); }
 const toolbar = el(`<div id="toolbar" class="row"><button data-t="select" class="on">선택/이동</button><button data-t="site">대지 그리기</button><button data-t="volume">볼륨 그리기</button><small>클릭으로 꼭짓점 추가, 더블클릭/Enter로 닫기</small></div>`);

@@ -5,6 +5,7 @@ import { coverage } from '../core/coverage.js';
 import { instantMs, sunDirection } from '../core/sun.js';
 import { createView } from './view3d.js';
 import { onTheme } from './theme.js';
+import { createHistory } from '../core/history.js';
 
 // 동지일. KASI 월력요항(2026): 동지 12월 22일 05:50 KST 확인. 히트맵은 항상 이 날짜로 계산한다.
 export const HEAT_DATE = '2026-12-22';
@@ -23,6 +24,17 @@ const view = makeView();
 onTheme(() => { view.applyScene?.(); render(); });
 const listeners = [];
 export const onRender = (fn) => listeners.push(fn);
+
+// ───────── 되돌리기/다시 실행: 대지·볼륨·설정의 스냅샷 이력 (보기 모드·한도·테마는 제외) ─────────
+export const snapshot = () => JSON.stringify({ site: state.site, volumes: state.volumes, settings: state.settings });
+const histListeners = [];
+export const onHistory = (fn) => histListeners.push(fn);
+const history = createHistory({ snapshot, restore: (json) => { Object.assign(state, JSON.parse(json)); render(); } });
+export const record = (before, key) => { if (history.record(before, key)) histListeners.forEach((fn) => fn()); };
+export const undo = () => { const ok = history.undo(); if (ok) histListeners.forEach((fn) => fn()); return ok; };
+export const redo = () => { const ok = history.redo(); if (ok) histListeners.forEach((fn) => fn()); return ok; };
+export const canUndo = () => history.canUndo();
+export const canRedo = () => history.canRedo();
 
 export function setState(next) {
   Object.assign(state, next);

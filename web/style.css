@@ -25,6 +25,9 @@ header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify
 .brand strong { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .sub { font-size: 12px; color: var(--muted); }
 .hright { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hist { display: inline-flex; gap: 4px; }
+.hist button { width: 40px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.hist button:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 .disclaimer { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; background: var(--danger-bg); color: var(--danger); font-size: 12.5px; font-weight: 700; }
 
 main { display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; height: calc(100vh - 69px); }
