@@ -8,9 +8,9 @@ const site = () => ({
 });
 
 const settings = () => ({
-  date: '2026-12-22', // 동지일(KST 기준으로 사용). KASI 월력요항(2026) 동지 12월 22일 05:50 KST 확인
+  date: '2026-12-22', // 동지일. KASI 월력요항(2026) 동지 12월 22일 05:50 KST 확인
   timeMin: 720,
-  timeBasis: 'KST',
+  timeBasis: '진태양시',
   lat: 37.5665,
   lon: 126.978,
   floorHeight: 3,
