@@ -12,13 +12,13 @@ npm test         # node --test (core만 대상)
 npm run dev      # python -m http.server 8000 → http://localhost:8000/web/
 ```
 
-런타임 의존은 Three.js 하나(CDN import map, SRI integrity 적용)이며 SunCalc는 테스트에서만 쓴다. `web/`이 `../core`를 import하므로 저장소 루트를 서빙해야 한다(`web/`만 서빙하면 동작하지 않는다).
+런타임 의존은 Three.js 하나(CDN import map, SRI integrity 적용)이며 SunCalc는 테스트에서만 쓴다. 글꼴(Noto Sans KR, Archivo)은 Google Fonts CSS로 불러온다(SRI 적용 불가, 막히면 맑은 고딕·system-ui로 대체되어 표시). 공개 전에 자체 호스팅을 다시 검토한다. `web/`이 `../core`를 import하므로 저장소 루트를 서빙해야 한다(`web/`만 서빙하면 동작하지 않는다).
 
 ## 구조
 
 ```
 core/   sun, geom, setback, sunhours, coverage, validate, samples   순수 JS(DOM 없음, 노드·브라우저 공용)
-web/    index.html, main.js, ui.js, view3d.js, heat.worker.js, style.css
+web/    index.html, main.js, ui.js, view3d.js, theme.js, heat.worker.js, style.css
 tests/  node --test (+ fixtures/noaa-seoul-2026-12-22.json)
 docs/superpowers/specs|plans/
 ```
@@ -26,6 +26,7 @@ docs/superpowers/specs|plans/
 ## 기능
 
 - 날짜·시각 그림자(표준시 KST / 진태양시 토글), Three.js 3D 뷰
+- 라이트/다크 테마(헤더 토글, 선택값만 localStorage 저장, 기본 라이트, OS 설정은 따르지 않음). 다크 3D는 슬레이트 중간톤 바닥(시안 E2)
 - 동지(상수 `HEAT_DATE` = 2026-12-22) 09~15시 일조 히트맵(날짜 입력과 무관, 최대 연속 / 누적 토글), 지반 격자 + 이웃 건물 외벽 격자, Web Worker 계산
 - 정북 사선 검토: 위반 부위 빨간 표시, 허용 사선 면 반투명, 볼륨별 최대 초과 높이
 - 변 태그: 인접대지 / 도로·공원 등(폭 입력, 제86조⑥) / 적용제외(제86조②3호)
@@ -67,6 +68,8 @@ docs/superpowers/specs|plans/
 **SRI·좌표창 확인(내장 브라우저, 2026-10-09):** import map에 integrity를 넣은 상태로 페이지 로드·3D 캔버스 생성 확인. 같은 CDN 파일을 integrity 옵션으로 fetch하면 올바른 sha384는 통과, 틀린 값은 차단됨. 좌표 입력창에서 볼륨 N1을 선택한 채 다른 볼륨 A를 삭제해도 선택(N1)과 텍스트 유지.
 
 **히트맵 성능 실험(2026-10-11):** 병목은 기하가 아니라 점마다 반복되던 태양 위치 계산(sunAt 1.45µs × 점당 43회, isLit은 0.30µs)이었다. Worker에서 sunAt을 시각별로 메모이즈(`web/heat.worker.js`, 3줄). core 단독 벤치(node)와 브라우저 Worker 쌍 비교(0.5m, 12,077점) 모두 모든 값이 `deepStrictEqual`로 완전히 같고 약 5~6배 빨라짐(node 약 1.5~1.8s → 0.27~0.36s, 브라우저 Worker 같은 세션 쌍 비교 약 7.5s → 1.3s; 절대 시간은 기계 부하로 크게 흔들림). 상세와 보류한 후보는 GitHub 이슈(experiment) 참조.
+
+**UI 개편 확인(2026-10-11, 내장 브라우저):** 라이트·다크 각각 3D 그림자/히트맵/사선 모드와 평면 편집 탭 렌더 확인, 모바일 폭(375px)에서 가로 넘침 없이 세로로 쌓이고 3D가 맨 위에 옴(시각 순서만 바뀌며 DOM 순서는 그대로), Google Fonts 정상 로드 확인, 글꼴 로드를 막은 상태(맑은 고딕 대체)를 CSS 변수 덮어쓰기로 흉내 내어 레이아웃 유지 확인(실제 네트워크 차단은 시험하지 않음). 다크에서 일조 0분 점(보라)이 어두운 바닥에 묻히는 문제는 바닥을 슬레이트 중간톤으로 올려 해결(점 테두리를 두르는 E1 안은 색이 바래 보여 폐기). 기록은 이슈 experiment v5.
 
 **샘플 히트맵 비교(테스트, 이웃 벽 108점 평균 연속 일조):** 위반 샘플 약 142분(120분 이상 72점) < 합격 샘플 약 169분(82점), 기본값 진태양시 기준 (KST 기준에서는 143분/78점 vs 169분/86점).
 

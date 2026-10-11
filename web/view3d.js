@@ -92,14 +92,7 @@ export function createView(container) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true }));
-    const ring = scenePalette().ring; // 다크 E1: 어두운 점이 바닥에 묻히지 않게 밝은 테두리를 점 뒤에 깐다
-    if (ring === null) return pts;
-    const back = new THREE.Points(g, new THREE.PointsMaterial({ size: 8.6, sizeAttenuation: false, color: ring, transparent: true, opacity: 0.55, depthWrite: false }));
-    const grp = new THREE.Group();
-    back.renderOrder = 1; pts.renderOrder = 2;
-    grp.add(back, pts);
-    return grp;
+    return new THREE.Points(g, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true }));
   }
 
   function update(state, ctx) {
