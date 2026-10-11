@@ -19,7 +19,7 @@ npm run dev      # python -m http.server 8000 → http://localhost:8000/web/
 ## 구조
 
 ```
-core/   sun, geom, setback, sunhours, coverage, validate, samples   순수 JS(DOM 없음, 노드·브라우저 공용)
+core/   sun, geom, setback, sunhours, coverage, validate, samples, history   순수 JS(DOM 없음, 노드·브라우저 공용)
 web/    index.html, main.js, ui.js, view3d.js, theme.js, heat.worker.js, style.css
 tests/  node --test (+ fixtures/noaa-seoul-2026-12-22.json)
 docs/superpowers/specs|plans/
